@@ -17,7 +17,10 @@ class SocketService {
 
     this.socket = io(this.apiUrl, {
       auth: { token },
-      transports: ['websocket', 'polling']
+      transports: ['polling'],
+      path: '/socket.io',
+      upgrade: false,
+      rememberUpgrade: false
     })
 
     this.socket.on('connect', () => {
