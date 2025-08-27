@@ -162,8 +162,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000
 
-// Only start server if not on Vercel
-if (process.env.NODE_ENV !== 'production') {
+// Start server unless running on Vercel (which imports the app as a handler)
+if (!process.env.VERCEL) {
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`)
     console.log(`📱 Client URL: ${clientUrl}`)

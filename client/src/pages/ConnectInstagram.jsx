@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api from '../utils/api'
 
 const ConnectInstagram = ({ user, onLogout }) => {
   const [isConnecting, setIsConnecting] = useState(false)
@@ -16,7 +16,7 @@ const ConnectInstagram = ({ user, onLogout }) => {
   const checkInstagramStatus = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('/api/instagram/status', {
+      const response = await api.get('/api/instagram/status', {
         headers: { Authorization: `Bearer ${token}` }
       })
       
@@ -38,7 +38,7 @@ const ConnectInstagram = ({ user, onLogout }) => {
       setError(null)
       
       const token = localStorage.getItem('token')
-      const response = await axios.get('/api/instagram/auth/instagram', {
+      const response = await api.get('/api/instagram/auth/instagram', {
         headers: { Authorization: `Bearer ${token}` }
       })
       
@@ -59,7 +59,7 @@ const ConnectInstagram = ({ user, onLogout }) => {
   const handleDisconnectInstagram = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.delete('/api/instagram/disconnect', {
+      const response = await api.delete('/api/instagram/disconnect', {
         headers: { Authorization: `Bearer ${token}` }
       })
       
