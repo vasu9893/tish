@@ -26,6 +26,10 @@ const instagramUserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  userAccessToken: {
+    type: String,
+    required: false // Optional, for future use
+  },
   tokenExpiresAt: {
     type: Date,
     required: true

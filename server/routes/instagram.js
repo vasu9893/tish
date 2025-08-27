@@ -88,33 +88,68 @@ router.get('/auth/instagram/callback', async (req, res) => {
 
     const { access_token, user_id } = tokenResponse.data
 
-    // Get long-lived token
-    const longLivedResponse = await metaApi.getLongLivedToken(access_token)
+    // Get long-lived user token
+    const longLivedUserResponse = await metaApi.getLongLivedToken(access_token)
     
-    if (!longLivedResponse.success) {
+    if (!longLivedUserResponse.success) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Failed to get long-lived token' 
+        error: 'Failed to get long-lived user token' 
       })
     }
 
-    const { access_token: longLivedToken, expires_in } = longLivedResponse.data
+    const { access_token: longLivedUserToken, expires_in: userTokenExpiresIn } = longLivedUserResponse.data
 
-    // Get page information
-    const pageResponse = await metaApi.getPageInfo(longLivedToken)
+    // Get user's pages
+    const pagesResponse = await metaApi.getUserPages(longLivedUserToken)
     
-    if (!pageResponse.success) {
+    console.log('Pages response:', pagesResponse)
+    
+    if (!pagesResponse.success) {
+      console.error('Failed to get user pages:', pagesResponse.error)
       return res.status(400).json({ 
         success: false, 
-        error: 'Failed to get page information' 
+        error: 'Failed to get user pages',
+        details: pagesResponse.error
       })
     }
 
-    const { id: pageId, name: pageName, instagram_business_account } = pageResponse.data
+    const pages = pagesResponse.data.data || []
+    console.log('User pages found:', pages.length)
+    
+    // Find a page with Instagram business account
+    const pageWithInstagram = pages.find(page => page.instagram_business_account)
+    
+    if (!pageWithInstagram) {
+      console.error('No Instagram business account found in pages:', pages.map(p => ({ id: p.id, name: p.name, hasInstagram: !!p.instagram_business_account })))
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No Instagram business account found. Please ensure your Facebook page is connected to Instagram.',
+        availablePages: pages.map(p => ({ id: p.id, name: p.name, hasInstagram: !!p.instagram_business_account }))
+      })
+    }
 
-    // Calculate token expiry
+    const { id: pageId, name: pageName, access_token: pageAccessToken, instagram_business_account } = pageWithInstagram
+
+    // Get long-lived page token
+    const longLivedPageResponse = await metaApi.getLongLivedToken(pageAccessToken)
+    
+    console.log('Page token exchange response:', longLivedPageResponse)
+    
+    if (!longLivedPageResponse.success) {
+      console.error('Failed to get long-lived page token:', longLivedPageResponse.error)
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Failed to get long-lived page token',
+        details: longLivedPageResponse.error
+      })
+    }
+
+    const { access_token: longLivedPageToken, expires_in: pageTokenExpiresIn } = longLivedPageResponse.data
+
+    // Calculate token expiry (use page token expiry)
     const tokenExpiresAt = new Date()
-    tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + expires_in)
+    tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + pageTokenExpiresIn)
 
     // Save or update Instagram user connection
     const instagramUser = await InstagramUser.findOneAndUpdate(
@@ -124,8 +159,9 @@ router.get('/auth/instagram/callback', async (req, res) => {
         username: pageName || 'Instagram User',
         instagramAccountId: instagram_business_account?.id || user_id,
         pageId: pageId,
-        pageAccessToken: longLivedToken,
-        longLivedToken: longLivedToken,
+        pageAccessToken: longLivedPageToken,
+        longLivedToken: longLivedPageToken,
+        userAccessToken: longLivedUserToken, // Store user token for future use
         tokenExpiresAt: tokenExpiresAt,
         pageName: pageName,
         isConnected: true,

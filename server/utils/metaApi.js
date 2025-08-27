@@ -45,6 +45,36 @@ class MetaApiHelper {
   }
 
   /**
+   * Get user's pages
+   * @param {string} userAccessToken - User access token
+   * @returns {Promise<Object>} User's pages
+   */
+  async getUserPages(userAccessToken) {
+    try {
+      const response = await axios.get(
+        `${this.graphUrl}/me/accounts`,
+        {
+          params: {
+            access_token: userAccessToken,
+            fields: 'id,name,access_token,instagram_business_account'
+          }
+        }
+      )
+      
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error getting user pages:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
    * Get Instagram page information
    * @param {string} pageAccessToken - Page access token
    * @returns {Promise<Object>} Page info
