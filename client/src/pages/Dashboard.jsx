@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { 
   MessageCircle, 
   Bot, 
-  Settings, 
+  Settings as SettingsIcon, 
   LogOut, 
   Instagram, 
   Zap, 
@@ -115,7 +115,7 @@ const Dashboard = ({ user, onLogout }) => {
               <span>Flows</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <Settings className="w-4 h-4" />
+              <SettingsIcon className="w-4 h-4" />
               <span>Settings</span>
             </TabsTrigger>
           </TabsList>
