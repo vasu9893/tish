@@ -5,6 +5,11 @@ const cors = require('cors')
 const dotenv = require('dotenv')
 const connectDB = require('./config/db')
 
+// Initialize queue system
+const { serverAdapter: bullBoardAdapter } = require('./config/bullBoard')
+const { checkQueueHealth } = require('./config/bullBoard')
+require('./config/workers') // Initialize workers
+
 // Load environment variables
 dotenv.config()
 
@@ -62,6 +67,9 @@ app.use('/api/messages', require('./routes/messages'))
 app.use('/api/instagram', require('./routes/instagram'))
 app.use('/api/flow', require('./routes/flow'))
 app.use('/webhook', require('./routes/webhook'))
+
+// Bull Board admin dashboard
+app.use('/admin/queues', bullBoardAdapter.getRouter())
 
 // Socket.io connection handling
 io.use((socket, next) => {
@@ -155,6 +163,24 @@ app.get('/', (req, res) => {
   })
 })
 
+// Queue system health check
+app.get('/api/health/queues', async (req, res) => {
+  try {
+    const health = await checkQueueHealth()
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      queues: health
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack)
@@ -169,8 +195,31 @@ if (!process.env.VERCEL) {
     console.log(`🚀 Server running on port ${PORT}`)
     console.log(`📱 Client URL: ${clientUrl}`)
     console.log(`🔧 CORS enabled for: ${clientUrl}`)
+    console.log(`📊 Queue admin dashboard: http://localhost:${PORT}/admin/queues`)
   })
 }
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🔄 Shutting down gracefully...')
+  
+  // Close HTTP server
+  server.close(() => {
+    console.log('✅ HTTP server closed')
+  })
+  
+  // Close Socket.io
+  io.close(() => {
+    console.log('✅ Socket.io closed')
+  })
+  
+  // Close database connection
+  const mongoose = require('mongoose')
+  await mongoose.connection.close()
+  console.log('✅ Database connection closed')
+  
+  process.exit(0)
+})
 
 // Export for Vercel
 module.exports = app

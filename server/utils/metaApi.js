@@ -81,13 +81,16 @@ class MetaApiHelper {
    */
   async exchangeCodeForToken(code) {
     try {
+      // Use the correct backend callback URL
+      const redirectUri = process.env.BACKEND_URL || 'https://tish-production.up.railway.app'
+      
       const response = await axios.get(
         `${this.graphUrl}/oauth/access_token`,
         {
           params: {
             client_id: process.env.META_APP_ID,
             client_secret: process.env.META_APP_SECRET,
-            redirect_uri: `${process.env.CLIENT_URL}/api/auth/instagram/callback`,
+            redirect_uri: `${redirectUri}/api/instagram/auth/instagram/callback`,
             code: code
           }
         }
@@ -98,10 +101,23 @@ class MetaApiHelper {
         data: response.data
       }
     } catch (error) {
-      console.error('Error exchanging code for token:', error.response?.data || error.message)
+      console.error('Error exchanging code for token:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        params: {
+          client_id: process.env.META_APP_ID,
+          redirect_uri: `${process.env.BACKEND_URL || 'https://tish-production.up.railway.app'}/api/instagram/auth/instagram/callback`,
+          code: code ? 'present' : 'missing'
+        }
+      })
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: error.response?.data || error.message,
+        details: {
+          status: error.response?.status,
+          message: error.message
+        }
       }
     }
   }

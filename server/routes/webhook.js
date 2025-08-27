@@ -2,7 +2,8 @@ const express = require('express')
 const router = express.Router()
 const Message = require('../models/Message')
 const InstagramUser = require('../models/InstagramUser')
-const FlowEngine = require('../engine/flowEngine')
+const EnhancedFlowEngine = require('../engine/enhancedFlowEngine')
+const queueService = require('../services/queueService')
 
 // Instagram webhook verification (GET request)
 router.get('/instagram', (req, res) => {
@@ -95,29 +96,46 @@ async function processMessagingEvent(messagingEvent, pageId) {
     await newMessage.save()
     console.log(`💾 Instagram message saved to database: ${newMessage._id}`)
 
-    // Run automation flows for this message
+    // Queue Instagram event for processing
     try {
-      const flowEngine = new FlowEngine()
-      const automationResult = await flowEngine.runAutomation(instagramUser.userId, messageText)
-      
-      if (automationResult.success) {
-        console.log(`🤖 Automation executed: ${automationResult.message}`)
-        
-        // Check if any message nodes were triggered and send replies
-        for (const flowResult of automationResult.results) {
-          if (flowResult.result && flowResult.result.type === 'message') {
-            console.log(`💬 Auto-reply triggered: ${flowResult.result.content}`)
-            
-            // TODO: Send actual Instagram message via Meta API
-            // For now, we'll just log it
-            // await sendInstagramMessage(senderId, flowResult.result.content)
+      const eventData = {
+        object: 'page',
+        entry: [{
+          id: pageId,
+          time: timestamp,
+          messaging: [{
+            sender: { id: senderId },
+            recipient: { id: recipientId },
+            timestamp: timestamp,
+            message: {
+              mid: messageId,
+              text: messageText
+            }
+          }]
+        }]
+      };
+
+      // Add to Instagram events queue
+      const queueResult = await queueService.addInstagramEvent(
+        instagramUser.userId, 
+        eventData,
+        {
+          metadata: {
+            messageId: messageId,
+            senderId: senderId,
+            pageId: pageId
           }
         }
+      );
+
+      if (queueResult.success) {
+        console.log(`✅ Instagram event queued: ${queueResult.jobId}`);
       } else {
-        console.log(`⚠️ No automation flows found or error: ${automationResult.message}`)
+        console.log(`⚠️ Event already processing: ${queueResult.reason}`);
       }
+      
     } catch (error) {
-      console.error('❌ Error running automation:', error)
+      console.error('❌ Error queuing Instagram event:', error)
     }
 
     // TODO: Emit via Socket.io to update frontend in real-time

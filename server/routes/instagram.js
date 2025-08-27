@@ -8,11 +8,21 @@ const authMiddleware = require('../middleware/authMiddleware')
 // Instagram OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.META_APP_ID
-  // Force HTTPS for Facebook OAuth - hardcode Railway URL for now
-  const redirectUri = 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
+  // Use environment variable or fallback to Railway URL
+  const redirectUri = process.env.BACKEND_URL 
+    ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
+    : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
+  
   const scope = 'instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_read_engagement'
   
   const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${Date.now()}`
+  
+  console.log('Instagram OAuth initiated:', {
+    appId,
+    redirectUri,
+    scope,
+    authUrl
+  })
   
   res.json({ 
     success: true, 
@@ -37,9 +47,11 @@ router.get('/auth/instagram/callback', async (req, res) => {
     const tokenResponse = await metaApi.exchangeCodeForToken(code)
     
     if (!tokenResponse.success) {
+      console.error('Token exchange failed:', tokenResponse)
       return res.status(400).json({ 
         success: false, 
-        error: 'Failed to exchange code for token' 
+        error: 'Failed to exchange code for token',
+        details: tokenResponse.details || tokenResponse.error
       })
     }
 
