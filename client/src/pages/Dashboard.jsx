@@ -114,6 +114,17 @@ const Dashboard = ({ user, onLogout }) => {
                   </button>
                 )}
               </div>
+              
+              {/* Flow Builder Link */}
+              <div className="flex items-center space-x-2 ml-4">
+                <button
+                  onClick={() => navigate('/flow-builder')}
+                  className="text-xs px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full hover:from-blue-600 hover:to-purple-600 transition-all flex items-center space-x-1"
+                >
+                  <span>🤖</span>
+                  <span>Flow Builder</span>
+                </button>
+              </div>
             </div>
             
             {/* Connection Status */}

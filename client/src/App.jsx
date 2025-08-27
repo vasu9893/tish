@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import ConnectInstagram from './pages/ConnectInstagram'
 import Dashboard from './pages/Dashboard'
+import FlowBuilder from './pages/FlowBuilder'
 import './App.css'
 
 function App() {
@@ -58,6 +59,14 @@ function App() {
           element={
             isAuthenticated ? 
             <Dashboard user={user} onLogout={handleLogout} /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/flow-builder" 
+          element={
+            isAuthenticated ? 
+            <FlowBuilder user={user} onLogout={handleLogout} /> : 
             <Navigate to="/login" replace />
           } 
         />

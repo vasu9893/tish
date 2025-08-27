@@ -60,6 +60,7 @@ app.use(express.json())
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/messages', require('./routes/messages'))
 app.use('/api/instagram', require('./routes/instagram'))
+app.use('/api/flow', require('./routes/flow'))
 app.use('/webhook', require('./routes/webhook'))
 
 // Socket.io connection handling
