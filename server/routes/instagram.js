@@ -44,6 +44,13 @@ router.get('/auth/instagram/callback', async (req, res) => {
     }
 
     // Exchange code for access token
+    console.log('Attempting token exchange with code:', code ? 'present' : 'missing')
+    console.log('Environment variables:', {
+      META_APP_ID: process.env.META_APP_ID ? 'set' : 'missing',
+      META_APP_SECRET: process.env.META_APP_SECRET ? 'set' : 'missing',
+      BACKEND_URL: process.env.BACKEND_URL || 'not set'
+    })
+    
     const tokenResponse = await metaApi.exchangeCodeForToken(code)
     
     if (!tokenResponse.success) {
@@ -336,6 +343,42 @@ router.post('/data-deletion', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to process data deletion callback' 
+    })
+  }
+})
+
+// @route   GET /api/instagram/account
+// @desc    Get Instagram account information
+// @access  Private
+router.get('/account', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    if (!instagramUser || !instagramUser.isConnected) {
+      return res.status(404).json({
+        success: false,
+        error: 'Instagram account not connected'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        pageId: instagramUser.pageId,
+        pageName: instagramUser.pageName,
+        instagramAccountId: instagramUser.instagramAccountId,
+        username: instagramUser.username,
+        lastConnected: instagramUser.lastConnected,
+        tokenExpiresAt: instagramUser.tokenExpiresAt,
+        isConnected: instagramUser.isConnected
+      }
+    })
+  } catch (error) {
+    console.error('Get Instagram account error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get Instagram account' 
     })
   }
 })

@@ -38,31 +38,46 @@ connectDB()
 app.use(cors({
   origin: (origin, callback) => {
     // Allow specific client URL and also handle null/undefined origins (SSR/health checks)
-    const allowed = [clientUrl, 'http://localhost:3000', 'https://localhost:3000']
+    const allowed = [
+      clientUrl, 
+      'http://localhost:3000', 
+      'https://localhost:3000',
+      'https://instantchat.in',  // Add your frontend domain
+      'https://www.instantchat.in' // Add www subdomain if needed
+    ]
     if (!origin || allowed.includes(origin)) return callback(null, true)
     // Temporarily allow other origins to fix deployment CORS; tighten later
     return callback(null, true)
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Add OPTIONS for preflight
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }))
 
 // Recreate io with relaxed CORS if needed
 io.engine.opts.cors = io.engine.opts.cors || {}
 io.engine.opts.cors.origin = (origin, callback) => {
-  const allowed = [clientUrl, 'http://localhost:3000', 'https://localhost:3000']
+  const allowed = [
+    clientUrl, 
+    'http://localhost:3000', 
+    'https://localhost:3000',
+    'https://instantchat.in',  // Add your frontend domain
+    'https://www.instantchat.in' // Add www subdomain if needed
+  ]
   if (!origin || allowed.includes(origin)) return callback(null, true)
   return callback(null, true)
 }
 io.engine.opts.cors.credentials = true
-io.engine.opts.cors.methods = ["GET", "POST", "PUT", "DELETE"]
-io.engine.opts.cors.allowedHeaders = ["Content-Type", "Authorization"]
+io.engine.opts.cors.methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+io.engine.opts.cors.allowedHeaders = ["Content-Type", "Authorization", "X-Requested-With"]
 
 app.use(express.json())
 
 // Routes
 app.use('/api/auth', require('./routes/auth'))
+app.use('/api/user', require('./routes/user'))
 app.use('/api/messages', require('./routes/messages'))
 app.use('/api/instagram', require('./routes/instagram'))
 app.use('/api/flow', require('./routes/flow'))

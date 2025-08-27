@@ -136,4 +136,84 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 })
 
+// @route   GET /api/messages/instagram
+// @desc    Get Instagram conversations
+// @access  Private
+router.get('/instagram', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    
+    // Get Instagram messages grouped by conversation
+    const conversations = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { isFromInstagram: true, userId: userId },
+            { isToInstagram: true, userId: userId }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ['$isFromInstagram', true] },
+              '$instagramSenderId',
+              '$instagramSenderId'
+            ]
+          },
+          lastMessage: { $last: '$$ROOT' },
+          messageCount: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { 'lastMessage.timestamp': -1 }
+      }
+    ])
+    
+    res.json({
+      success: true,
+      conversations: conversations.map(conv => ({
+        id: conv._id,
+        lastMessage: conv.lastMessage,
+        messageCount: conv.messageCount
+      }))
+    })
+  } catch (error) {
+    console.error('Get Instagram conversations error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get Instagram conversations' 
+    })
+  }
+})
+
+// @route   GET /api/messages/instagram/:conversationId
+// @desc    Get messages for a specific Instagram conversation
+// @access  Private
+router.get('/instagram/:conversationId', authMiddleware, async (req, res) => {
+  try {
+    const { conversationId } = req.params
+    const userId = req.user.id
+    
+    const messages = await Message.find({
+      $or: [
+        { isFromInstagram: true, instagramSenderId: conversationId, userId: userId },
+        { isToInstagram: true, instagramSenderId: conversationId, userId: userId }
+      ]
+    }).sort({ timestamp: 1 })
+    
+    res.json({
+      success: true,
+      messages: messages
+    })
+  } catch (error) {
+    console.error('Get Instagram conversation messages error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get conversation messages' 
+    })
+  }
+})
+
 module.exports = router
