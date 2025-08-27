@@ -27,7 +27,20 @@ router.get('/auth/instagram', (req, res) => {
   res.json({ 
     success: true, 
     authUrl: authUrl,
-    message: 'Redirect user to this URL to authorize Instagram access'
+    message: 'Redirect user to this URL to authorize Instagram access',
+    redirectUri: redirectUri // Include this for debugging
+  })
+})
+
+// Test callback URL endpoint
+router.get('/auth/instagram/callback/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Callback URL is working!',
+    timestamp: new Date().toISOString(),
+    url: req.originalUrl,
+    baseUrl: req.baseUrl,
+    path: req.path
   })
 })
 
@@ -36,7 +49,15 @@ router.get('/auth/instagram/callback', async (req, res) => {
   try {
     const { code, state } = req.query
     
+    console.log('Instagram OAuth callback received:', {
+      code: code ? 'present' : 'missing',
+      state: state,
+      query: req.query,
+      headers: req.headers
+    })
+    
     if (!code) {
+      console.error('No authorization code received in callback')
       return res.status(400).json({ 
         success: false, 
         error: 'Authorization code not received' 
@@ -53,12 +74,15 @@ router.get('/auth/instagram/callback', async (req, res) => {
     
     const tokenResponse = await metaApi.exchangeCodeForToken(code)
     
+    console.log('Token exchange response:', tokenResponse)
+    
     if (!tokenResponse.success) {
       console.error('Token exchange failed:', tokenResponse)
       return res.status(400).json({ 
         success: false, 
         error: 'Failed to exchange code for token',
-        details: tokenResponse.details || tokenResponse.error
+        details: tokenResponse.details || tokenResponse.error,
+        response: tokenResponse
       })
     }
 

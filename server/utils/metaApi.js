@@ -84,6 +84,9 @@ class MetaApiHelper {
       // Use the correct backend callback URL
       const redirectUri = process.env.BACKEND_URL || 'https://tish-production.up.railway.app'
       
+      console.log('Token exchange - redirect_uri:', `${redirectUri}/api/instagram/auth/instagram/callback`)
+      console.log('Token exchange - code:', code ? 'present' : 'missing')
+      
       const response = await axios.get(
         `${this.graphUrl}/oauth/access_token`,
         {
