@@ -38,9 +38,37 @@ const Settings = ({ user, onLogout }) => {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    // Load Instagram connection status
+    // Load user profile and Instagram connection status
+    loadUserProfile()
     loadInstagramStatus()
   }, [])
+
+  const loadUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/user/profile', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.profile) {
+          const profile = data.profile
+          setProfileData({
+            username: profile.username || user.username,
+            email: profile.email || user.email,
+            fullName: profile.fullName || '',
+            bio: profile.bio || ''
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error)
+    }
+  }
 
   const loadInstagramStatus = async () => {
     try {
@@ -81,15 +109,34 @@ const Settings = ({ user, onLogout }) => {
     setIsLoading(true)
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(profileData)
+      })
       
-      // Update user object
-      Object.assign(user, profileData)
-      
-      setIsEditing(false)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Update local user object
+          Object.assign(user, profileData)
+          setIsEditing(false)
+          console.log('Profile updated successfully')
+        } else {
+          console.error('Failed to update profile:', data.error)
+          alert('Failed to update profile. Please try again.')
+        }
+      } else {
+        console.error('Failed to update profile:', response.status)
+        alert('Failed to update profile. Please try again.')
+      }
     } catch (error) {
       console.error('Error updating profile:', error)
+      alert('Error updating profile. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -133,6 +180,170 @@ const Settings = ({ user, onLogout }) => {
     }
   }
 
+  const handleEnable2FA = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/user/2fa/enable', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Show QR code or setup instructions
+          alert('2FA setup initiated. Please check your email for setup instructions.')
+        } else {
+          alert('Failed to enable 2FA. Please try again.')
+        }
+      } else {
+        alert('Failed to enable 2FA. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error enabling 2FA:', error)
+      alert('Error enabling 2FA. Please try again.')
+    }
+  }
+
+  const handleViewInstagramAccount = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/instagram/account', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.account) {
+          const account = data.account
+          const accountInfo = `
+Instagram Account Details:
+Username: @${account.username}
+Full Name: ${account.fullName || 'N/A'}
+Followers: ${account.followers || 'N/A'}
+Following: ${account.following || 'N/A'}
+Posts: ${account.posts || 'N/A'}
+Business Account: ${account.isBusinessAccount ? 'Yes' : 'No'}
+          `.trim()
+          alert(accountInfo)
+        } else {
+          alert('Failed to load Instagram account details.')
+        }
+      } else {
+        alert('Failed to load Instagram account details.')
+      }
+    } catch (error) {
+      console.error('Error loading Instagram account:', error)
+      alert('Error loading Instagram account details.')
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently delete all your data, flows, and Instagram connections.')) {
+      return
+    }
+
+    const password = prompt('Please enter your password to confirm account deletion:')
+    if (!password) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/user/delete', {
+        method: 'DELETE',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          alert('Account deleted successfully. You will be redirected to the login page.')
+          // Clear local storage and redirect to login
+          localStorage.clear()
+          window.location.href = '/login'
+        } else {
+          alert('Failed to delete account: ' + (data.error || 'Unknown error'))
+        }
+      } else {
+        alert('Failed to delete account. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      alert('Error deleting account. Please try again.')
+    }
+  }
+
+  const handleConfigureNotifications = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/user/notifications/settings', {
+        method: 'GET',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Show notification settings modal or navigate to settings page
+          alert('Notification settings loaded. Feature coming soon!')
+        } else {
+          alert('Failed to load notification settings. Please try again.')
+        }
+      } else {
+        alert('Failed to load notification settings. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error loading notification settings:', error)
+      alert('Error loading notification settings. Please try again.')
+    }
+  }
+
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    try {
+      const formData = new FormData()
+      formData.append('avatar', file)
+      
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/user/avatar', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Refresh the page to show new avatar
+          window.location.reload()
+        } else {
+          alert('Failed to upload avatar. Please try again.')
+        }
+      } else {
+        alert('Failed to upload avatar. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error)
+      alert('Error uploading avatar. Please try again.')
+    }
+  }
+
   const handleInstagramConnect = () => {
     // Navigate to Instagram connection page
     navigate('/connect-instagram')
@@ -154,17 +365,29 @@ const Settings = ({ user, onLogout }) => {
         <CardContent className="space-y-6">
           {/* Avatar Section */}
           <div className="flex items-center space-x-4">
-            <Avatar className="w-20 h-20">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} />
-              <AvatarFallback className="text-2xl">{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
+                         <Avatar className="w-20 h-20">
+               <AvatarImage src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} />
+               <AvatarFallback className="text-2xl">{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+             </Avatar>
             <div>
               <h3 className="text-lg font-medium">{user.username}</h3>
-              <p className="text-sm text-gray-500">Member since {new Date().toLocaleDateString()}</p>
-              <Button variant="outline" size="sm" className="mt-2">
+                             <p className="text-sm text-gray-500">Member since {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Recently'}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+                onClick={() => document.getElementById('avatar-upload').click()}
+              >
                 <Edit className="w-4 h-4 mr-2" />
                 Change Avatar
               </Button>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
             </div>
           </div>
 
@@ -260,7 +483,11 @@ const Settings = ({ user, onLogout }) => {
                 </div>
               </div>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleViewInstagramAccount}
+                >
                   <Globe className="w-4 h-4 mr-2" />
                   View Account
                 </Button>
@@ -315,8 +542,17 @@ const Settings = ({ user, onLogout }) => {
                 <p className="text-sm text-blue-700">Add an extra layer of security</p>
               </div>
             </div>
-            <Button variant="outline" size="sm">
-              Enable 2FA
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleEnable2FA}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+              ) : (
+                'Enable 2FA'
+              )}
             </Button>
           </div>
 
@@ -328,7 +564,12 @@ const Settings = ({ user, onLogout }) => {
                 <p className="text-sm text-orange-700">Get notified of new login attempts</p>
               </div>
             </div>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleConfigureNotifications}
+              disabled={isLoading}
+            >
               Configure
             </Button>
           </div>
@@ -354,8 +595,17 @@ const Settings = ({ user, onLogout }) => {
                 </p>
               </div>
             </div>
-            <Button variant="destructive" size="sm">
-              Delete Account
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={handleDeleteAccount}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin mr-2" />
+              ) : (
+                'Delete Account'
+              )}
             </Button>
           </div>
         </CardContent>

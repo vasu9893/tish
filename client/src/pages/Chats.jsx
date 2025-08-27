@@ -12,6 +12,7 @@ const Chats = ({ user }) => {
   const [newMessage, setNewMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
 
   useEffect(() => {
     // Load Instagram conversations from API
@@ -51,6 +52,7 @@ const Chats = ({ user }) => {
 
   const loadChatMessages = async (conversationId) => {
     try {
+      setIsLoadingMessages(true)
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/messages/instagram/${conversationId}`, {
         headers: { 
@@ -73,6 +75,8 @@ const Chats = ({ user }) => {
     } catch (error) {
       console.error('Error loading chat messages:', error)
       setMessages([])
+    } finally {
+      setIsLoadingMessages(false)
     }
   }
 
@@ -136,12 +140,20 @@ const Chats = ({ user }) => {
               <Instagram className="w-5 h-5 text-pink-600" />
               <span>Instagram DMs</span>
             </CardTitle>
-            <CardDescription>
-              {conversations.length} active conversations
-            </CardDescription>
+                         <CardDescription>
+               {isRefreshing ? (
+                 <div className="flex items-center space-x-2">
+                   <div className="w-4 h-4 border-2 border-pink-600 border-t-transparent rounded-full animate-spin"></div>
+                   <span>Loading conversations...</span>
+                 </div>
+               ) : (
+                 `${conversations.length} active conversation${conversations.length !== 1 ? 's' : ''}`
+               )}
+             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {conversations.map((conversation) => (
+                     <CardContent className="space-y-3">
+             {conversations.length > 0 ? (
+               conversations.map((conversation) => (
               <div
                 key={conversation.id}
                 onClick={() => selectConversation(conversation)}
@@ -172,8 +184,15 @@ const Chats = ({ user }) => {
                   )}
                 </div>
               </div>
-            ))}
-          </CardContent>
+               ))
+             ) : (
+               <div className="text-center py-8 text-gray-500">
+                 <Instagram className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                 <p className="text-sm">No Instagram conversations yet</p>
+                 <p className="text-xs">Connect your Instagram account to start receiving messages</p>
+               </div>
+             )}
+           </CardContent>
         </Card>
       </div>
 
@@ -206,7 +225,15 @@ const Chats = ({ user }) => {
 
               {/* Messages */}
               <CardContent className="flex-1 overflow-y-auto space-y-4 p-4">
-                {messages.map((message) => (
+                {isLoadingMessages ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center text-gray-500">
+                      <div className="w-8 h-8 border-2 border-pink-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                      <p className="text-sm">Loading messages...</p>
+                    </div>
+                  </div>
+                ) : messages.length > 0 ? (
+                  messages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${message.isFromUser ? 'justify-end' : 'justify-start'}`}
@@ -228,10 +255,17 @@ const Chats = ({ user }) => {
                       </div>
                       <p className="text-sm">{message.content}</p>
                       <p className="text-xs opacity-75 mt-1">{message.timestamp}</p>
-                    </div>
+                                         </div>
+                   </div>
+                 ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                    <p className="text-sm">No messages yet</p>
+                    <p className="text-xs">Start the conversation by sending a message</p>
                   </div>
-                ))}
-              </CardContent>
+                )}
+               </CardContent>
 
               {/* Message Input */}
               <div className="p-4 border-t">

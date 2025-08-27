@@ -5,9 +5,7 @@ import ReactFlow, {
   useEdgesState,
   Controls,
   Background,
-  MiniMap,
-  Node,
-  Edge
+  MiniMap
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useNavigate } from 'react-router-dom'
