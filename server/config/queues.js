@@ -112,6 +112,5 @@ module.exports = {
   instagramEventsQueue,
   automationProcessingQueue,
   delayedMessagesQueue,
-  rateLimitedMessagesQueue,
-  delayedMessagesScheduler
+  rateLimitedMessagesQueue
 };

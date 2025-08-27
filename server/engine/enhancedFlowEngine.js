@@ -1,13 +1,13 @@
 const FlowEngine = require('./flowEngine');
-const queueService = require('../services/queueService');
-const rateLimitService = require('../services/rateLimitService');
+// const queueService = require('../services/queueService');
+// const rateLimitService = require('../services/rateLimitService');
 const { v4: uuidv4 } = require('uuid');
 
 class EnhancedFlowEngine extends FlowEngine {
   constructor() {
     super();
-    this.queueService = queueService;
-    this.rateLimitService = rateLimitService;
+    // this.queueService = queueService;
+    // this.rateLimitService = rateLimitService;
   }
 
   /**

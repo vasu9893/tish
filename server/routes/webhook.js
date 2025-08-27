@@ -2,8 +2,8 @@ const express = require('express')
 const router = express.Router()
 const Message = require('../models/Message')
 const InstagramUser = require('../models/InstagramUser')
-const EnhancedFlowEngine = require('../engine/enhancedFlowEngine')
-const queueService = require('../services/queueService')
+// const EnhancedFlowEngine = require('../engine/enhancedFlowEngine')
+// const queueService = require('../services/queueService')
 
 // Instagram webhook verification (GET request)
 router.get('/instagram', (req, res) => {
@@ -96,47 +96,47 @@ async function processMessagingEvent(messagingEvent, pageId) {
     await newMessage.save()
     console.log(`💾 Instagram message saved to database: ${newMessage._id}`)
 
-    // Queue Instagram event for processing
-    try {
-      const eventData = {
-        object: 'page',
-        entry: [{
-          id: pageId,
-          time: timestamp,
-          messaging: [{
-            sender: { id: senderId },
-            recipient: { id: recipientId },
-            timestamp: timestamp,
-            message: {
-              mid: messageId,
-              text: messageText
-            }
-          }]
-        }]
-      };
+    // Queue Instagram event for processing (temporarily disabled)
+    // try {
+    //   const eventData = {
+    //     object: 'page',
+    //     entry: [{
+    //       id: pageId,
+    //       time: timestamp,
+    //       messaging: [{
+    //         sender: { id: senderId },
+    //         recipient: { id: recipientId },
+    //         timestamp: timestamp,
+    //         message: {
+    //           mid: messageId,
+    //           text: messageText
+    //         }
+    //       }]
+    //     }]
+    //   };
 
-      // Add to Instagram events queue
-      const queueResult = await queueService.addInstagramEvent(
-        instagramUser.userId, 
-        eventData,
-        {
-          metadata: {
-            messageId: messageId,
-            senderId: senderId,
-            pageId: pageId
-          }
-        }
-      );
+    //   // Add to Instagram events queue
+    //   const queueResult = await queueService.addInstagramEvent(
+    //     instagramUser.userId, 
+    //     eventData,
+    //     {
+    //       metadata: {
+    //         messageId: messageId,
+    //         senderId: senderId,
+    //         pageId: pageId
+    //       }
+    //     }
+    //   );
 
-      if (queueResult.success) {
-        console.log(`✅ Instagram event queued: ${queueResult.jobId}`);
-      } else {
-        console.log(`⚠️ Event already processing: ${queueResult.reason}`);
-      }
+    //   if (queueResult.success) {
+    //     console.log(`✅ Instagram event queued: ${queueResult.jobId}`);
+    //     } else {
+    //       console.log(`⚠️ Event already processing: ${queueResult.reason}`);
+    //     }
       
-    } catch (error) {
-      console.error('❌ Error queuing Instagram event:', error)
-    }
+    // } catch (error) {
+    //   console.error('❌ Error queuing Instagram event:', error)
+    // }
 
     // TODO: Emit via Socket.io to update frontend in real-time
     // This will be implemented in the main server.js file
