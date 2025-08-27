@@ -14,7 +14,8 @@ import {
   Users, 
   BarChart3,
   Plus,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react'
 import Chats from './Chats'
 import FlowBuilder from './FlowBuilder'
@@ -35,12 +36,18 @@ const Dashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/instagram/status', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
       
       if (response.ok) {
         const data = await response.json()
-        setInstagramStatus(data.connected)
+        setInstagramStatus(data.connected || false)
+      } else {
+        console.error('Failed to check Instagram status:', response.status)
+        setInstagramStatus(false)
       }
     } catch (error) {
       console.error('Error checking Instagram status:', error)
@@ -71,11 +78,23 @@ const Dashboard = ({ user, onLogout }) => {
 
             <div className="flex items-center space-x-4">
               {/* Instagram Status */}
-              <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
-                <div className={`w-2 h-2 rounded-full ${instagramStatus ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                <span className={`text-sm ${instagramStatus ? 'text-green-600' : 'text-gray-500'}`}>
-                  {instagramStatus ? 'Instagram Connected' : 'Instagram Not Connected'}
-                </span>
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${instagramStatus ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <span className={`text-sm ${instagramStatus ? 'text-green-600' : 'text-gray-500'}`}>
+                    {instagramStatus ? 'Instagram Connected' : 'Instagram Not Connected'}
+                  </span>
+                </div>
+                {!instagramStatus && (
+                  <Button 
+                    size="sm" 
+                    onClick={() => navigate('/connect-instagram')}
+                    className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
+                  >
+                    <Instagram className="w-4 h-4 mr-2" />
+                    Connect Instagram
+                  </Button>
+                )}
               </div>
 
               {/* User Menu */}
@@ -127,10 +146,20 @@ const Dashboard = ({ user, onLogout }) => {
                 <h2 className="text-2xl font-bold text-gray-900">Instagram Conversations</h2>
                 <p className="text-gray-600">Manage your Instagram direct messages and automation</p>
               </div>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                <Plus className="w-4 h-4 mr-2" />
-                New Flow
-              </Button>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </Button>
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Flow
+                </Button>
+              </div>
             </div>
             <Chats user={user} />
           </TabsContent>

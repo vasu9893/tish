@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react'
 
 const Settings = ({ user, onLogout }) => {
+  const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState({
     username: user.username,
@@ -42,14 +44,36 @@ const Settings = ({ user, onLogout }) => {
 
   const loadInstagramStatus = async () => {
     try {
-      // For demo, we'll use sample data
-      setInstagramStatus({
-        connected: true,
-        username: 'instantchat_official',
-        lastSync: '2 hours ago'
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/instagram/status', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setInstagramStatus({
+          connected: data.connected || false,
+          username: data.username || '',
+          lastSync: data.lastSync || null
+        })
+      } else {
+        // If API call fails, assume not connected
+        setInstagramStatus({
+          connected: false,
+          username: '',
+          lastSync: null
+        })
+      }
     } catch (error) {
       console.error('Error loading Instagram status:', error)
+      setInstagramStatus({
+        connected: false,
+        username: '',
+        lastSync: null
+      })
     }
   }
 
@@ -79,16 +103,31 @@ const Settings = ({ user, onLogout }) => {
     setIsLoading(true)
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setInstagramStatus({
-        connected: false,
-        username: '',
-        lastSync: null
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/instagram/disconnect', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
+      
+      if (response.ok) {
+        // Update local state after successful disconnect
+        setInstagramStatus({
+          connected: false,
+          username: '',
+          lastSync: null
+        })
+        console.log('Instagram account disconnected successfully')
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to disconnect Instagram:', errorData.error)
+        alert('Failed to disconnect Instagram account. Please try again.')
+      }
     } catch (error) {
       console.error('Error disconnecting Instagram:', error)
+      alert('Error disconnecting Instagram account. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -96,7 +135,7 @@ const Settings = ({ user, onLogout }) => {
 
   const handleInstagramConnect = () => {
     // Navigate to Instagram connection page
-    window.location.href = '/connect-instagram'
+    navigate('/connect-instagram')
   }
 
   return (

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
-import { MessageCircle, Send, Instagram, Clock, User, Bot } from 'lucide-react'
+import { MessageCircle, Send, Instagram, Clock, User, Bot, RefreshCw } from 'lucide-react'
 
 const Chats = ({ user }) => {
   const [conversations, setConversations] = useState([])
@@ -11,80 +11,72 @@ const Chats = ({ user }) => {
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
-    // Load sample conversations for demo
-    loadSampleConversations()
+    // Load Instagram conversations from API
+    loadInstagramConversations()
   }, [])
 
-  const loadSampleConversations = () => {
-    const sampleConversations = [
-      {
-        id: 1,
-        username: 'john_doe',
-        fullName: 'John Doe',
-        lastMessage: 'Hi! I have a question about your product',
-        timestamp: '2 min ago',
-        unreadCount: 1,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=john_doe`,
-        isInstagram: true
-      },
-      {
-        id: 2,
-        username: 'sarah_smith',
-        fullName: 'Sarah Smith',
-        lastMessage: 'Thanks for the help!',
-        timestamp: '1 hour ago',
-        unreadCount: 0,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=sarah_smith`,
-        isInstagram: true
-      },
-      {
-        id: 3,
-        username: 'mike_wilson',
-        fullName: 'Mike Wilson',
-        lastMessage: 'When will my order ship?',
-        timestamp: '3 hours ago',
-        unreadCount: 2,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=mike_wilson`,
-        isInstagram: true
+  const loadInstagramConversations = async () => {
+    try {
+      setIsRefreshing(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/messages/instagram', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.conversations) {
+          setConversations(data.conversations)
+        } else {
+          // If no conversations, show empty state
+          setConversations([])
+        }
+      } else {
+        console.error('Failed to load Instagram conversations:', response.status)
+        setConversations([])
       }
-    ]
-    setConversations(sampleConversations)
+    } catch (error) {
+      console.error('Error loading Instagram conversations:', error)
+      setConversations([])
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
-  const loadChatMessages = (conversationId) => {
-    // Load sample messages for the selected conversation
-    const sampleMessages = [
-      {
-        id: 1,
-        sender: 'john_doe',
-        content: 'Hi! I have a question about your product',
-        timestamp: '2 min ago',
-        isFromUser: false,
-        isInstagram: true
-      },
-      {
-        id: 2,
-        sender: user.username,
-        content: 'Hello! I\'d be happy to help. What would you like to know?',
-        timestamp: '1 min ago',
-        isFromUser: true,
-        isInstagram: false
-      },
-      {
-        id: 3,
-        sender: 'john_doe',
-        content: 'I\'m interested in the premium plan. What features does it include?',
-        timestamp: 'Just now',
-        isFromUser: false,
-        isInstagram: true
+  const loadChatMessages = async (conversationId) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/messages/instagram/${conversationId}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.messages) {
+          setMessages(data.messages)
+        } else {
+          setMessages([])
+        }
+      } else {
+        console.error('Failed to load chat messages:', response.status)
+        setMessages([])
       }
-    ]
-    setMessages(sampleMessages)
+    } catch (error) {
+      console.error('Error loading chat messages:', error)
+      setMessages([])
+    }
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return
 
     const message = {
@@ -96,21 +88,37 @@ const Chats = ({ user }) => {
       isInstagram: false
     }
 
+    // Add message to UI immediately for better UX
     setMessages(prev => [...prev, message])
     setNewMessage('')
 
-    // Simulate auto-reply after 2 seconds
-    setTimeout(() => {
-      const autoReply = {
-        id: Date.now() + 1,
-        sender: 'john_doe',
-        content: 'Thanks for your response! I\'ll get back to you soon.',
-        timestamp: 'Just now',
-        isFromUser: false,
-        isInstagram: true
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/instagram/send-message', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          recipientId: selectedChat.instagramUserId,
+          message: newMessage
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          console.log('Message sent successfully via Instagram')
+        } else {
+          console.error('Failed to send message:', data.error)
+        }
+      } else {
+        console.error('Failed to send message:', response.status)
       }
-      setMessages(prev => [...prev, autoReply])
-    }, 2000)
+    } catch (error) {
+      console.error('Error sending message:', error)
+    }
   }
 
   const selectConversation = (conversation) => {
