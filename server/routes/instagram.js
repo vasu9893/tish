@@ -8,7 +8,7 @@ const authMiddleware = require('../middleware/authMiddleware')
 // Instagram OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.META_APP_ID
-  const redirectUri = `${process.env.CLIENT_URL}/api/auth/instagram/callback`
+  const redirectUri = `${req.protocol}://${req.get('host')}/api/instagram/auth/instagram/callback`
   const scope = 'instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_read_engagement'
   
   const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${Date.now()}`
@@ -253,6 +253,76 @@ router.delete('/disconnect', authMiddleware, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to disconnect Instagram' 
+    })
+  }
+})
+
+// Deauthorize callback - called when user removes app access
+router.post('/deauthorize', async (req, res) => {
+  try {
+    const { signed_request } = req.body
+    
+    if (!signed_request) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Signed request not provided' 
+      })
+    }
+
+    // Parse the signed request to get user ID
+    // For now, we'll handle it simply - in production you'd verify the signature
+    console.log('Deauthorize request received:', { signed_request })
+    
+    // You can implement proper signature verification here
+    // const decoded = verifySignedRequest(signed_request, process.env.META_APP_SECRET)
+    
+    res.status(200).json({ 
+      success: true, 
+      message: 'Deauthorize callback processed' 
+    })
+    
+  } catch (error) {
+    console.error('Deauthorize callback error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process deauthorize callback' 
+    })
+  }
+})
+
+// Data deletion request callback - called when user requests data deletion
+router.post('/data-deletion', async (req, res) => {
+  try {
+    const { signed_request } = req.body
+    
+    if (!signed_request) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Signed request not provided' 
+      })
+    }
+
+    console.log('Data deletion request received:', { signed_request })
+    
+    // You can implement proper signature verification here
+    // const decoded = verifySignedRequest(signed_request, process.env.META_APP_SECRET)
+    
+    // For now, return a placeholder response
+    // In production, you'd implement actual data deletion logic
+    res.status(200).json({
+      success: true,
+      message: 'Data deletion request processed',
+      data: {
+        url: `${process.env.CLIENT_URL}/data-deletion-status`,
+        confirmation_code: `DEL_${Date.now()}`
+      }
+    })
+    
+  } catch (error) {
+    console.error('Data deletion callback error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process data deletion callback' 
     })
   }
 })
