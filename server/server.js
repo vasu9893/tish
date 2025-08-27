@@ -5,10 +5,10 @@ const cors = require('cors')
 const dotenv = require('dotenv')
 const connectDB = require('./config/db')
 
-// Initialize queue system
-const { serverAdapter: bullBoardAdapter } = require('./config/bullBoard')
-const { checkQueueHealth } = require('./config/bullBoard')
-require('./config/workers') // Initialize workers
+// Initialize queue system (temporarily disabled for debugging)
+// const { serverAdapter: bullBoardAdapter } = require('./config/bullBoard')
+// const { checkQueueHealth } = require('./config/bullBoard')
+// require('./config/workers') // Initialize workers
 
 // Load environment variables
 dotenv.config()
@@ -36,44 +36,35 @@ connectDB()
 
 // Enhanced CORS middleware for production
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow specific client URL and also handle null/undefined origins (SSR/health checks)
-    const allowed = [
-      clientUrl, 
-      'http://localhost:3000', 
-      'https://localhost:3000',
-      'https://instantchat.in',  // Add your frontend domain
-      'https://www.instantchat.in' // Add www subdomain if needed
-    ]
-    if (!origin || allowed.includes(origin)) return callback(null, true)
-    // Temporarily allow other origins to fix deployment CORS; tighten later
-    return callback(null, true)
-  },
+  origin: true, // Allow all origins temporarily to fix CORS issues
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Add OPTIONS for preflight
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Origin", "Accept"],
   preflightContinue: false,
   optionsSuccessStatus: 200
 }))
 
 // Recreate io with relaxed CORS if needed
 io.engine.opts.cors = io.engine.opts.cors || {}
-io.engine.opts.cors.origin = (origin, callback) => {
-  const allowed = [
-    clientUrl, 
-    'http://localhost:3000', 
-    'https://localhost:3000',
-    'https://instantchat.in',  // Add your frontend domain
-    'https://www.instantchat.in' // Add www subdomain if needed
-  ]
-  if (!origin || allowed.includes(origin)) return callback(null, true)
-  return callback(null, true)
-}
+io.engine.opts.cors.origin = true // Allow all origins temporarily
 io.engine.opts.cors.credentials = true
 io.engine.opts.cors.methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-io.engine.opts.cors.allowedHeaders = ["Content-Type", "Authorization", "X-Requested-With"]
+io.engine.opts.cors.allowedHeaders = ["Content-Type", "Authorization", "X-Requested-With", "Origin", "Accept"]
 
 app.use(express.json())
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'))
@@ -83,8 +74,8 @@ app.use('/api/instagram', require('./routes/instagram'))
 app.use('/api/flow', require('./routes/flow'))
 app.use('/webhook', require('./routes/webhook'))
 
-// Bull Board admin dashboard
-app.use('/admin/queues', bullBoardAdapter.getRouter())
+// Bull Board admin dashboard (temporarily disabled)
+// app.use('/admin/queues', bullBoardAdapter.getRouter())
 
 // Socket.io connection handling
 io.use((socket, next) => {
@@ -178,23 +169,23 @@ app.get('/', (req, res) => {
   })
 })
 
-// Queue system health check
-app.get('/api/health/queues', async (req, res) => {
-  try {
-    const health = await checkQueueHealth()
-    res.json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      queues: health
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    })
-  }
-})
+// Queue system health check (temporarily disabled)
+// app.get('/api/health/queues', async (req, res) => {
+//   try {
+//     const health = await checkQueueHealth()
+//     res.json({
+//       success: true,
+//       timestamp: new Date().toISOString(),
+//       queues: health
+//     })
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       error: error.message,
+//       timestamp: new Date().toISOString()
+//     })
+//   }
+// })
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -210,7 +201,7 @@ if (!process.env.VERCEL) {
     console.log(`🚀 Server running on port ${PORT}`)
     console.log(`📱 Client URL: ${clientUrl}`)
     console.log(`🔧 CORS enabled for: ${clientUrl}`)
-    console.log(`📊 Queue admin dashboard: http://localhost:${PORT}/admin/queues`)
+    console.log(`📊 Queue system temporarily disabled for debugging`)
   })
 }
 

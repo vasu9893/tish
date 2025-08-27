@@ -1,4 +1,4 @@
-const { Queue, Worker, QueueScheduler } = require('bullmq');
+const { Queue, Worker } = require('bullmq');
 const { connection } = require('./redis');
 
 // Queue names
@@ -63,10 +63,7 @@ const rateLimitedMessagesQueue = new Queue(QUEUE_NAMES.RATE_LIMITED_MESSAGES, {
   }
 });
 
-// Create schedulers for delayed jobs
-const delayedMessagesScheduler = new QueueScheduler(QUEUE_NAMES.DELAYED_MESSAGES, {
-  connection
-});
+// Note: QueueScheduler removed - using built-in delay functionality instead
 
 // Queue event handlers
 instagramEventsQueue.on('completed', (job) => {
@@ -101,7 +98,6 @@ const gracefulShutdown = async () => {
   await automationProcessingQueue.close();
   await delayedMessagesQueue.close();
   await rateLimitedMessagesQueue.close();
-  await delayedMessagesScheduler.close();
   
   console.log('✅ All queues closed');
 };
