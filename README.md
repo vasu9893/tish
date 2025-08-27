@@ -1,15 +1,37 @@
-# InstantChat - Phase 1 MVP
+# InstantChat - Complete SaaS Platform
 
-A real-time chat application built with React, Node.js, and Socket.io. This is the MVP version for testing and validation.
+A comprehensive real-time chat application with Instagram integration and Bot Flow Builder. Built with React, Node.js, and Socket.io.
+
+## 📋 Project Phases
+
+- **Phase 1** ✅ - Basic MVP with real-time chat
+- **Phase 2** ✅ - Instagram API integration  
+- **Phase 3** ✅ - Bot Flow Builder with React Flow
 
 ## 🚀 Features
 
+### Phase 1: Core Chat
 - **Real-time messaging** using Socket.io
 - **User authentication** with JWT tokens
 - **Responsive design** with Tailwind CSS
 - **MongoDB integration** for message persistence
 - **Modern React** with hooks and functional components
 - **Clean architecture** ready for future expansions
+
+### Phase 2: Instagram Integration
+- **Meta OAuth 2.0** authentication
+- **Instagram Direct Messaging** via Messenger API
+- **Webhook handling** for incoming messages
+- **Outbound message sending** to Instagram users
+- **Connection status management**
+
+### Phase 3: Bot Flow Builder
+- **Visual flow editor** with React Flow
+- **Drag & drop** node-based interface
+- **Three node types**: Message, Condition, Action
+- **Flow execution engine** for testing
+- **Save/load flows** with MongoDB storage
+- **Variable interpolation** and conditional logic
 
 ## 📁 Project Structure
 
@@ -18,6 +40,7 @@ instantchat/
 ├── client/                 # React frontend
 │   ├── src/
 │   │   ├── components/    # Reusable UI components
+│   │   │   └── flow/      # Flow Builder components
 │   │   ├── pages/         # Page components
 │   │   ├── utils/         # Utility functions
 │   │   ├── App.jsx        # Main app component
@@ -29,6 +52,8 @@ instantchat/
 │   ├── middleware/        # Express middleware
 │   ├── models/            # Mongoose models
 │   ├── routes/            # API routes
+│   ├── utils/             # Utility functions
+│   ├── scripts/           # Utility scripts
 │   ├── package.json       # Backend dependencies
 │   └── server.js          # Main server file
 ├── .env.example           # Environment variables template

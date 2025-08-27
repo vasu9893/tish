@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const Message = require('../models/Message')
 const InstagramUser = require('../models/InstagramUser')
+const FlowEngine = require('../engine/flowEngine')
 
 // Instagram webhook verification (GET request)
 router.get('/instagram', (req, res) => {
@@ -93,6 +94,31 @@ async function processMessagingEvent(messagingEvent, pageId) {
 
     await newMessage.save()
     console.log(`💾 Instagram message saved to database: ${newMessage._id}`)
+
+    // Run automation flows for this message
+    try {
+      const flowEngine = new FlowEngine()
+      const automationResult = await flowEngine.runAutomation(instagramUser.userId, messageText)
+      
+      if (automationResult.success) {
+        console.log(`🤖 Automation executed: ${automationResult.message}`)
+        
+        // Check if any message nodes were triggered and send replies
+        for (const flowResult of automationResult.results) {
+          if (flowResult.result && flowResult.result.type === 'message') {
+            console.log(`💬 Auto-reply triggered: ${flowResult.result.content}`)
+            
+            // TODO: Send actual Instagram message via Meta API
+            // For now, we'll just log it
+            // await sendInstagramMessage(senderId, flowResult.result.content)
+          }
+        }
+      } else {
+        console.log(`⚠️ No automation flows found or error: ${automationResult.message}`)
+      }
+    } catch (error) {
+      console.error('❌ Error running automation:', error)
+    }
 
     // TODO: Emit via Socket.io to update frontend in real-time
     // This will be implemented in the main server.js file

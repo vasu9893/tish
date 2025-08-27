@@ -1,63 +1,46 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Sidebar from '../components/Sidebar'
-import ChatWindow from '../components/ChatWindow'
-import MessageInput from '../components/MessageInput'
-import socketService from '../utils/socket'
-import axios from 'axios'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { Button } from '../components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { 
+  MessageCircle, 
+  Bot, 
+  Settings, 
+  LogOut, 
+  Instagram, 
+  Zap, 
+  Users, 
+  BarChart3,
+  Plus,
+  Search
+} from 'lucide-react'
+import Chats from './Chats'
+import FlowBuilder from './FlowBuilder'
+import Settings from './Settings'
 
 const Dashboard = ({ user, onLogout }) => {
-  const [messages, setMessages] = useState([])
-  const [socket, setSocket] = useState(null)
-  const [isConnected, setIsConnected] = useState(false)
+  const [activeTab, setActiveTab] = useState('chats')
   const [instagramStatus, setInstagramStatus] = useState(null)
+  const [isConnected, setIsConnected] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Connect to socket when component mounts
-    const token = localStorage.getItem('token')
-    const socketInstance = socketService.connect(token)
-    setSocket(socketInstance)
-
-    // Listen for incoming messages
-    socketService.on('message', (newMessage) => {
-      setMessages(prev => [...prev, newMessage])
-    })
-
-    // Listen for message history
-    socketService.on('messageHistory', (history) => {
-      setMessages(history)
-    })
-
-    // Listen for connection status
-    socketService.on('connect', () => {
-      setIsConnected(true)
-    })
-
-    socketService.on('disconnect', () => {
-      setIsConnected(false)
-    })
-
-    // Request message history
-    socketService.emit('getMessageHistory')
-
     // Check Instagram connection status
     checkInstagramStatus()
-
-    return () => {
-      socketService.disconnect()
-    }
   }, [])
 
   const checkInstagramStatus = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('/api/instagram/status', {
+      const response = await fetch('/api/instagram/status', {
         headers: { Authorization: `Bearer ${token}` }
       })
       
-      if (response.data.success) {
-        setInstagramStatus(response.data.connected)
+      if (response.ok) {
+        const data = await response.json()
+        setInstagramStatus(data.connected)
       }
     } catch (error) {
       console.error('Error checking Instagram status:', error)
@@ -65,83 +48,120 @@ const Dashboard = ({ user, onLogout }) => {
     }
   }
 
-  const goToConnectInstagram = () => {
-    navigate('/connect-instagram')
-  }
-
-  const handleSendMessage = (content) => {
-    if (!content.trim()) return
-
-    const newMessage = {
-      id: Date.now().toString(),
-      content: content.trim(),
-      sender: user.username,
-      timestamp: new Date().toISOString(),
-      userId: user.id
-    }
-
-    // Send message to server - don't add locally to prevent duplicates
-    socketService.emit('sendMessage', newMessage)
+  const handleLogout = () => {
+    onLogout()
+    navigate('/login')
   }
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar user={user} onLogout={onLogout} isConnected={isConnected} />
-      
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-              <h1 className="text-xl font-semibold text-gray-900">General Chat</h1>
-              <span className="text-sm text-gray-500">• Real-time messaging</span>
-              
-              {/* Instagram Status */}
-              <div className="flex items-center space-x-2 ml-4">
-                <div className={`w-2 h-2 rounded-full ${instagramStatus ? 'bg-pink-500' : 'bg-gray-400'}`}></div>
-                <span className={`text-sm ${instagramStatus ? 'text-pink-600' : 'text-gray-500'}`}>
-                  {instagramStatus ? 'Instagram Connected' : 'Instagram Not Connected'}
-                </span>
-                {!instagramStatus && (
-                  <button
-                    onClick={goToConnectInstagram}
-                    className="text-xs px-2 py-1 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-full hover:from-pink-600 hover:to-orange-600 transition-all"
-                  >
-                    Connect
-                  </button>
-                )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                <MessageCircle className="w-6 h-6 text-white" />
               </div>
-              
-              {/* Flow Builder Link */}
-              <div className="flex items-center space-x-2 ml-4">
-                <button
-                  onClick={() => navigate('/flow-builder')}
-                  className="text-xs px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full hover:from-blue-600 hover:to-purple-600 transition-all flex items-center space-x-1"
-                >
-                  <span>🤖</span>
-                  <span>Flow Builder</span>
-                </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">InstantChat</h1>
+                <p className="text-sm text-gray-500">Automation Platform</p>
               </div>
             </div>
-            
-            {/* Connection Status */}
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
+
+            <div className="flex items-center space-x-4">
+              {/* Instagram Status */}
+              <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
+                <div className={`w-2 h-2 rounded-full ${instagramStatus ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                <span className={`text-sm ${instagramStatus ? 'text-green-600' : 'text-gray-500'}`}>
+                  {instagramStatus ? 'Instagram Connected' : 'Instagram Not Connected'}
+                </span>
+              </div>
+
+              {/* User Menu */}
+              <div className="flex items-center space-x-3">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} />
+                  <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="hidden md:block">
+                  <p className="text-sm font-medium text-gray-900">{user.username}</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Chat Window */}
-        <ChatWindow messages={messages} currentUser={user} />
-        
-        {/* Message Input */}
-        <MessageInput onSendMessage={handleSendMessage} isConnected={isConnected} />
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
+            <TabsTrigger value="chats" className="flex items-center space-x-2">
+              <MessageCircle className="w-4 h-4" />
+              <span>Chats</span>
+            </TabsTrigger>
+            <TabsTrigger value="flows" className="flex items-center space-x-2">
+              <Bot className="w-4 h-4" />
+              <span>Flows</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center space-x-2">
+              <Settings className="w-4 h-4" />
+              <span>Settings</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Chats Tab */}
+          <TabsContent value="chats" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Instagram Conversations</h2>
+                <p className="text-gray-600">Manage your Instagram direct messages and automation</p>
+              </div>
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Plus className="w-4 h-4 mr-2" />
+                New Flow
+              </Button>
+            </div>
+            <Chats user={user} />
+          </TabsContent>
+
+          {/* Flows Tab */}
+          <TabsContent value="flows" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Automation Flows</h2>
+                <p className="text-gray-600">Build and manage your automated conversation workflows</p>
+              </div>
+              <Button 
+                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                onClick={() => navigate('/flow-builder')}
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                Create Flow
+              </Button>
+            </div>
+            <FlowBuilder user={user} />
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Account Settings</h2>
+              <p className="text-gray-600">Manage your profile and connected accounts</p>
+            </div>
+            <Settings user={user} onLogout={handleLogout} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
