@@ -8,7 +8,8 @@ const authMiddleware = require('../middleware/authMiddleware')
 // Instagram OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.META_APP_ID
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/instagram/auth/instagram/callback`
+  // Force HTTPS for Facebook OAuth
+  const redirectUri = `https://${req.get('host')}/api/instagram/auth/instagram/callback`
   const scope = 'instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_read_engagement'
   
   const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${Date.now()}`
