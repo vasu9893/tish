@@ -31,11 +31,28 @@ connectDB()
 
 // Enhanced CORS middleware for production
 app.use(cors({
-  origin: [clientUrl, "http://localhost:3000", "https://localhost:3000"],
+  origin: (origin, callback) => {
+    // Allow specific client URL and also handle null/undefined origins (SSR/health checks)
+    const allowed = [clientUrl, 'http://localhost:3000', 'https://localhost:3000']
+    if (!origin || allowed.includes(origin)) return callback(null, true)
+    // Temporarily allow other origins to fix deployment CORS; tighten later
+    return callback(null, true)
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }))
+
+// Recreate io with relaxed CORS if needed
+io.engine.opts.cors = io.engine.opts.cors || {}
+io.engine.opts.cors.origin = (origin, callback) => {
+  const allowed = [clientUrl, 'http://localhost:3000', 'https://localhost:3000']
+  if (!origin || allowed.includes(origin)) return callback(null, true)
+  return callback(null, true)
+}
+io.engine.opts.cors.credentials = true
+io.engine.opts.cors.methods = ["GET", "POST", "PUT", "DELETE"]
+io.engine.opts.cors.allowedHeaders = ["Content-Type", "Authorization"]
 
 app.use(express.json())
 
