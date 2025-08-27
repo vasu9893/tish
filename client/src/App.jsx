@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import ConnectInstagram from './pages/ConnectInstagram'
 import Dashboard from './pages/Dashboard'
 import FlowBuilder from './pages/FlowBuilder'
@@ -44,6 +45,14 @@ function App() {
             isAuthenticated ? 
             <Navigate to="/dashboard" replace /> : 
             <Login onLogin={handleLogin} />
+          } 
+        />
+        <Route 
+          path="/signup" 
+          element={
+            isAuthenticated ? 
+            <Navigate to="/dashboard" replace /> : 
+            <Signup onLogin={handleLogin} />
           } 
         />
         <Route 
