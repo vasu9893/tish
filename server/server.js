@@ -169,48 +169,6 @@ app.get('/', (req, res) => {
   })
 })
 
-// Health check endpoint for Railway
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy',
-    message: 'InstantChat API is running!',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  })
-})
-
-// Railway-specific health check
-app.get('/railway-health', (req, res) => {
-  res.status(200).send('OK')
-})
-
-// Public Instagram endpoints for testing (no authentication required)
-app.get('/api/instagram/public/status', (req, res) => {
-  res.json({
-    success: true,
-    connected: false,
-    message: 'Instagram not connected (public endpoint)',
-    timestamp: new Date().toISOString(),
-    note: 'This is a public endpoint for testing - no login required'
-  })
-})
-
-app.get('/api/instagram/public/conversations', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      conversations: [],
-      total: 0,
-      limit: 50,
-      offset: 0
-    },
-    message: 'Public endpoint - no conversations yet',
-    timestamp: new Date().toISOString(),
-    note: 'This is a public endpoint for testing - no login required'
-  })
-})
-
 // Queue system health check (temporarily disabled)
 // app.get('/api/health/queues', async (req, res) => {
 //   try {

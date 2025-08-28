@@ -22,14 +22,10 @@ export const sendMessage = (messageData) => api.post('/api/messages', messageDat
 export const getMessages = () => api.get('/api/messages')
 
 // Instagram functions
-export const getInstagramStatus = () => api.get('/api/instagram/public/status') // Using public endpoint for testing
+export const getInstagramStatus = () => api.get('/api/instagram/status')
 export const connectInstagram = () => api.get('/api/instagram/auth/instagram')
 export const disconnectInstagram = () => api.delete('/api/instagram/disconnect')
 export const sendInstagramMessage = (messageData) => api.post('/api/instagram/sendMessage', messageData)
-
-// Public Instagram endpoints for testing (no authentication required)
-export const getInstagramStatusPublic = () => api.get('/api/instagram/public/status')
-export const getInstagramConversationsPublic = () => api.get('/api/instagram/public/conversations')
 
 // Flow functions
 export const saveFlow = (flowData) => api.post('/api/flow/save', flowData)
