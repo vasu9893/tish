@@ -5,6 +5,16 @@ const Message = require('../models/Message')
 const metaApi = require('../utils/metaApi')
 const authMiddleware = require('../middleware/authMiddleware')
 
+// Test endpoint to verify routes are working
+router.get('/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Instagram routes are working!',
+    timestamp: new Date().toISOString(),
+    route: '/api/instagram/test'
+  })
+})
+
 // Instagram OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.META_APP_ID
@@ -610,6 +620,14 @@ router.post('/sendBulkMessage', authMiddleware, async (req, res) => {
 
 // Get Instagram connection status
 router.get('/status', authMiddleware, async (req, res) => {
+  console.log('🔍 Instagram Status Route Called:', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url,
+    headers: req.headers,
+    user: req.user,
+    hasAuth: !!req.user
+  })
   try {
     const userId = req.user.id
     const instagramUser = await InstagramUser.findOne({ userId: userId })
@@ -649,6 +667,14 @@ router.get('/status', authMiddleware, async (req, res) => {
 
 // Get Instagram conversations
 router.get('/conversations', authMiddleware, async (req, res) => {
+  console.log('🔍 Instagram Conversations Route Called:', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url,
+    headers: req.headers,
+    user: req.user,
+    hasAuth: !!req.user
+  })
   try {
     const userId = req.user.id
     const { limit = 50, offset = 0 } = req.query
