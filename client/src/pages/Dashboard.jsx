@@ -35,45 +35,68 @@ const Dashboard = ({ user, onLogout }) => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  useEffect(() => {
+    useEffect(() => {
+    console.log('🚀 Dashboard: Component Mounted', {
+      timestamp: new Date().toISOString(),
+      hasToken: !!localStorage.getItem('token'),
+      userId: localStorage.getItem('userId'),
+      location: location.pathname,
+      search: location.search
+    })
+    
     // Check Instagram connection status
     checkInstagramStatus()
-    
+
     // Check for Instagram OAuth success in URL parameters
     const urlParams = new URLSearchParams(location.search)
     const instagramSuccess = urlParams.get('instagram')
-    
+
+    console.log('🔍 Dashboard: URL Parameters Check:', {
+      instagramSuccess,
+      pageId: urlParams.get('pageId'),
+      pageName: urlParams.get('pageName'),
+      instagramAccountId: urlParams.get('instagramAccountId'),
+      allParams: Object.fromEntries(urlParams.entries())
+    })
+
     if (instagramSuccess === 'success') {
       const pageId = urlParams.get('pageId')
       const pageName = urlParams.get('pageName')
       const instagramAccountId = urlParams.get('instagramAccountId')
-      
+
       if (pageId && pageName) {
-        console.log('Instagram OAuth success detected:', { pageId, pageName, instagramAccountId })
-        
+        console.log('🎉 Dashboard: Instagram OAuth Success Detected:', { 
+          pageId, 
+          pageName, 
+          instagramAccountId,
+          timestamp: new Date().toISOString()
+        })
+
         setSuccessData({
           pageId,
           pageName: decodeURIComponent(pageName),
           instagramAccountId
         })
         setShowSuccessMessage(true)
-        
+
         // Update Instagram status to connected
         setInstagramStatus(true)
-        
+
         // Switch to Instagram tab to show the new connection
         setActiveTab('instagram')
-        
+
         // Refresh Instagram status from backend
         setTimeout(() => {
+          console.log('🔄 Dashboard: Refreshing Instagram status after OAuth success...')
           checkInstagramStatus()
         }, 1000)
-        
+
         // Clear URL parameters
         navigate(location.pathname, { replace: true })
-        
+
         // Auto-hide success message after 5 seconds
         setTimeout(() => {
+          console.log('⏰ Dashboard: Auto-hiding success message')
           setShowSuccessMessage(false)
           setSuccessData(null)
         }, 5000)
@@ -82,8 +105,24 @@ const Dashboard = ({ user, onLogout }) => {
   }, [location.search, navigate])
 
   const checkInstagramStatus = async () => {
+    console.log('🔍 Dashboard: Checking Instagram Status...', {
+      timestamp: new Date().toISOString(),
+      currentStatus: instagramStatus,
+      hasToken: !!localStorage.getItem('token'),
+      userId: localStorage.getItem('userId')
+    })
+    
     try {
       const token = localStorage.getItem('token')
+      
+      if (!token) {
+        console.log('⚠️ Dashboard: No auth token found, skipping Instagram status check')
+        setInstagramStatus(false)
+        return
+      }
+      
+      console.log('🔑 Dashboard: Using auth token:', token.substring(0, 20) + '...')
+      
       const response = await fetch('/api/instagram/status', {
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -91,15 +130,42 @@ const Dashboard = ({ user, onLogout }) => {
         }
       })
       
+      console.log('📡 Dashboard: Instagram Status Response:', {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        timestamp: new Date().toISOString()
+      })
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ Dashboard: Instagram Status Data:', {
+          success: data.success,
+          connected: data.connected,
+          message: data.message,
+          data: data.data,
+          timestamp: new Date().toISOString()
+        })
         setInstagramStatus(data.connected || false)
       } else {
-        console.error('Failed to check Instagram status:', response.status)
+        console.error('❌ Dashboard: Instagram Status Failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          isAuthError: response.status === 401,
+          isNotFoundError: response.status === 404,
+          timestamp: new Date().toISOString()
+        })
         setInstagramStatus(false)
       }
     } catch (error) {
-      console.error('Error checking Instagram status:', error)
+      console.error('❌ Dashboard: Instagram Status Error:', {
+        error: error.message,
+        name: error.name,
+        stack: error.stack,
+        isNetworkError: error.name === 'TypeError',
+        timestamp: new Date().toISOString()
+      })
       setInstagramStatus(false)
     }
   }

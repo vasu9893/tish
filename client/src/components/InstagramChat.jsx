@@ -40,41 +40,117 @@ const InstagramChat = () => {
   }
 
   const loadConversations = async () => {
+    console.log('📚 Loading Instagram Conversations...', {
+      timestamp: new Date().toISOString(),
+      currentConversations: conversations.length,
+      hasToken: !!localStorage.getItem('token')
+    })
+    
     try {
       setLoading(true)
       const response = await api.get('/api/instagram/conversations')
+      
+      console.log('✅ Conversations Loaded Successfully:', {
+        success: response.data.success,
+        totalConversations: response.data.data?.conversations?.length || 0,
+        conversations: response.data.data?.conversations || [],
+        pagination: {
+          total: response.data.data?.total,
+          limit: response.data.data?.limit,
+          offset: response.data.data?.offset
+        }
+      })
+      
       if (response.data.success) {
         setConversations(response.data.data.conversations)
       }
     } catch (error) {
-      console.error('Error loading conversations:', error)
+      console.error('❌ Error Loading Conversations:', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        isAuthError: error.response?.status === 401,
+        isNotFoundError: error.response?.status === 404,
+        timestamp: new Date().toISOString()
+      })
     } finally {
       setLoading(false)
     }
   }
 
   const loadMessages = async (recipientId) => {
+    console.log('💬 Loading Messages for Conversation:', {
+      timestamp: new Date().toISOString(),
+      recipientId,
+      currentMessages: messages.length,
+      hasToken: !!localStorage.getItem('token')
+    })
+    
     try {
       setLoading(true)
       const response = await api.get(`/api/instagram/conversations/${recipientId}/messages`)
+      
+      console.log('✅ Messages Loaded Successfully:', {
+        success: response.data.success,
+        recipientId: response.data.data?.recipientId,
+        totalMessages: response.data.data?.messages?.length || 0,
+        messages: response.data.data?.messages || [],
+        pagination: {
+          total: response.data.data?.total,
+          limit: response.data.data?.limit,
+          offset: response.data.data?.offset
+        }
+      })
+      
       if (response.data.success) {
         setMessages(response.data.data.messages)
       }
     } catch (error) {
-      console.error('Error loading messages:', error)
+      console.error('❌ Error Loading Messages:', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        recipientId,
+        isAuthError: error.response?.status === 401,
+        isNotFoundError: error.response?.status === 404,
+        timestamp: new Date().toISOString()
+      })
     } finally {
       setLoading(false)
     }
   }
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return
+    if (!newMessage.trim() || !selectedConversation) {
+      console.log('⚠️ Cannot send message:', {
+        hasMessage: !!newMessage.trim(),
+        hasConversation: !!selectedConversation,
+        messageLength: newMessage.length,
+        selectedConversationId: selectedConversation?._id
+      })
+      return
+    }
+
+    console.log('📤 Sending Instagram Message:', {
+      timestamp: new Date().toISOString(),
+      recipientId: selectedConversation._id,
+      message: newMessage.substring(0, 50) + (newMessage.length > 50 ? '...' : ''),
+      messageType: 'text',
+      hasToken: !!localStorage.getItem('token')
+    })
 
     try {
       const response = await api.post('/api/instagram/sendMessage', {
         recipientId: selectedConversation._id,
         message: newMessage,
         messageType: 'text'
+      })
+
+      console.log('✅ Message Sent Successfully:', {
+        success: response.data.success,
+        messageId: response.data.data?.messageId,
+        instagramMessageId: response.data.data?.instagramMessageId,
+        timestamp: response.data.data?.timestamp
       })
 
       if (response.data.success) {
@@ -92,7 +168,15 @@ const InstagramChat = () => {
         loadConversations()
       }
     } catch (error) {
-      console.error('Error sending message:', error)
+      console.error('❌ Error Sending Message:', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        recipientId: selectedConversation._id,
+        message: newMessage,
+        isAuthError: error.response?.status === 401,
+        timestamp: new Date().toISOString()
+      })
     }
   }
 
