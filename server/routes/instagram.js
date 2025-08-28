@@ -608,16 +608,36 @@ router.post('/sendBulkMessage', authMiddleware, async (req, res) => {
   }
 })
 
-// Get Instagram connection status (temporarily public for testing)
-router.get('/status', async (req, res) => {
+// Get Instagram connection status
+router.get('/status', authMiddleware, async (req, res) => {
   try {
-    // For testing, return mock data without requiring authentication
+    const userId = req.user.id
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+
+    if (!instagramUser) {
+      return res.json({
+        success: true,
+        connected: false,
+        message: 'Instagram not connected'
+      })
+    }
+
+    const isExpired = instagramUser.isTokenExpired()
+    const daysUntilExpiry = instagramUser.daysUntilExpiry()
+
     res.json({
       success: true,
-      connected: false,
-      message: 'Instagram not connected (public test endpoint)',
-      timestamp: new Date().toISOString()
+      connected: instagramUser.isConnected && !isExpired,
+      data: {
+        pageName: instagramUser.pageName,
+        instagramUsername: instagramUser.instagramUsername,
+        lastConnected: instagramUser.lastConnected,
+        tokenExpiresAt: instagramUser.tokenExpiresAt,
+        daysUntilExpiry: daysUntilExpiry,
+        isExpired: isExpired
+      }
     })
+
   } catch (error) {
     console.error('Get Instagram status error:', error)
     res.status(500).json({ 
@@ -627,21 +647,75 @@ router.get('/status', async (req, res) => {
   }
 })
 
-// Get Instagram conversations (temporarily public for testing)
-router.get('/conversations', async (req, res) => {
+// Get Instagram conversations
+router.get('/conversations', authMiddleware, async (req, res) => {
   try {
-    // For testing, return mock data without requiring authentication
+    const userId = req.user.id
+    const { limit = 50, offset = 0 } = req.query
+
+    // Get user's Instagram connection
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    if (!instagramUser || !instagramUser.isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram not connected. Please connect your Instagram account first.' 
+      })
+    }
+
+    // Get conversations from messages
+    const conversations = await Message.aggregate([
+      { 
+        $match: { 
+          userId: userId, 
+          room: 'instagram',
+          $or: [
+            { isToInstagram: true },
+            { source: 'instagram' }
+            ] 
+          } 
+        },
+      {
+        $group: {
+          _id: '$instagramSenderId',
+          lastMessage: { $last: '$$ROOT' },
+          messageCount: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { 'lastMessage.timestamp': -1 }
+      },
+      {
+        $skip: parseInt(offset)
+      },
+      {
+        $limit: parseInt(limit)
+      }
+    ])
+
+    const total = await Message.countDocuments({
+      userId: userId,
+      room: 'instagram',
+      $or: [
+        { isToInstagram: true },
+        { source: 'instagram' }
+      ]
+    })
+
     res.json({
       success: true,
       data: {
-        conversations: [],
-        total: 0,
-        limit: 50,
-        offset: 0
-      },
-      message: 'Public test endpoint - no conversations yet',
-      timestamp: new Date().toISOString()
+        conversations: conversations.map(conv => ({
+          recipientId: conv._id,
+          lastMessage: conv.lastMessage,
+          messageCount: conv.messageCount
+        })),
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
     })
+
   } catch (error) {
     console.error('Get Instagram conversations error:', error)
     res.status(500).json({ 
