@@ -25,6 +25,7 @@ import Settings from './Settings'
 import InstagramChat from '../components/InstagramChat'
 import InstagramAutomation from '../components/InstagramAutomation'
 import InstagramAnalytics from '../components/InstagramAnalytics'
+import api from '../utils/api'
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('chats')
@@ -123,47 +124,24 @@ const Dashboard = ({ user, onLogout }) => {
       
       console.log('🔑 Dashboard: Using auth token:', token.substring(0, 20) + '...')
       
-      const response = await fetch('/api/instagram/status', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await api.get('/api/instagram/status')
       
-      console.log('📡 Dashboard: Instagram Status Response:', {
-        status: response.status,
-        ok: response.ok,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
+      console.log('✅ Dashboard: Instagram Status Response:', {
+        success: response.data.success,
+        connected: response.data.connected,
+        message: response.data.message,
+        data: response.data.data,
         timestamp: new Date().toISOString()
       })
       
-      if (response.ok) {
-        const data = await response.json()
-        console.log('✅ Dashboard: Instagram Status Data:', {
-          success: data.success,
-          connected: data.connected,
-          message: data.message,
-          data: data.data,
-          timestamp: new Date().toISOString()
-        })
-        setInstagramStatus(data.connected || false)
-      } else {
-        console.error('❌ Dashboard: Instagram Status Failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          isAuthError: response.status === 401,
-          isNotFoundError: response.status === 404,
-          timestamp: new Date().toISOString()
-        })
-        setInstagramStatus(false)
-      }
+      setInstagramStatus(response.data.connected || false)
     } catch (error) {
       console.error('❌ Dashboard: Instagram Status Error:', {
         error: error.message,
-        name: error.name,
-        stack: error.stack,
-        isNetworkError: error.name === 'TypeError',
+        status: error.response?.status,
+        data: error.response?.data,
+        isAuthError: error.response?.status === 401,
+        isNotFoundError: error.response?.status === 404,
         timestamp: new Date().toISOString()
       })
       setInstagramStatus(false)
