@@ -95,23 +95,54 @@ router.get('/auth/instagram/callback', async (req, res) => {
 
     const { access_token, user_id } = tokenResponse.data
 
+    // If user_id is missing, get it from user info API
+    let finalUserId = user_id
+    if (!user_id && access_token) {
+      console.log('User ID missing from token response, fetching from user info API...')
+      
+      const userInfoResponse = await metaApi.getUserInfo(access_token)
+      console.log('User info response:', {
+        success: userInfoResponse.success,
+        hasData: !!userInfoResponse.data,
+        dataKeys: userInfoResponse.data ? Object.keys(userInfoResponse.data) : 'no data',
+        fullData: userInfoResponse.data,
+        error: userInfoResponse.error
+      })
+      
+      if (userInfoResponse.success && userInfoResponse.data?.id) {
+        finalUserId = userInfoResponse.data.id
+        console.log('User ID obtained from user info API:', finalUserId)
+      } else {
+        console.error('Failed to get user ID from user info API:', userInfoResponse.error)
+        return res.status(400).json({
+          success: false,
+          error: 'Failed to get user ID from Meta API',
+          details: userInfoResponse.error || 'User info API call failed'
+        })
+      }
+    }
+
     // Validate required data
-    if (!access_token || !user_id) {
-      console.error('Missing required data from token response:', {
+    if (!access_token || !finalUserId) {
+      console.error('Missing required data after user info fetch:', {
         hasAccessToken: !!access_token,
-        hasUserId: !!user_id,
+        hasUserId: !!finalUserId,
+        originalUserId: user_id,
+        finalUserId: finalUserId,
         dataKeys: Object.keys(tokenResponse.data || {})
       })
       return res.status(400).json({
         success: false,
-        error: 'Invalid token response - missing access_token or user_id'
+        error: 'Invalid token response - missing access_token or user_id',
+        details: `Access token: ${!!access_token}, User ID: ${!!finalUserId}`
       })
     }
 
     console.log('Token response validation passed:', {
       hasAccessToken: !!access_token,
-      hasUserId: !!user_id,
-      userId: user_id
+      hasUserId: !!finalUserId,
+      originalUserId: user_id,
+      finalUserId: finalUserId
     })
 
     // Get long-lived user token
@@ -280,11 +311,11 @@ router.get('/auth/instagram/callback', async (req, res) => {
     // Save or update Instagram user connection
     console.log('Saving Instagram user to database...')
     const instagramUser = await InstagramUser.findOneAndUpdate(
-      { userId: user_id },
+      { userId: finalUserId },
       {
-        userId: user_id,
+        userId: finalUserId,
         username: pageName || 'Instagram User',
-        instagramAccountId: instagram_business_account?.id || user_id,
+        instagramAccountId: instagram_business_account?.id || finalUserId,
         pageId: pageId,
         pageAccessToken: longLivedPageToken,
         longLivedToken: longLivedPageToken,

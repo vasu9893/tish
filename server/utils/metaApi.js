@@ -75,6 +75,36 @@ class MetaApiHelper {
   }
 
   /**
+   * Get user information
+   * @param {string} accessToken - User access token
+   * @returns {Promise<Object>} User info
+   */
+  async getUserInfo(accessToken) {
+    try {
+      const response = await axios.get(
+        `${this.graphUrl}/me`,
+        {
+          params: {
+            access_token: accessToken,
+            fields: 'id,name,email'
+          }
+        }
+      )
+      
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error getting user info:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
    * Get Instagram page information
    * @param {string} pageAccessToken - Page access token
    * @returns {Promise<Object>} Page info
