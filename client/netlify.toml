@@ -5,11 +5,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
-
-[[redirects]]
-  from = "/api/*"
-  to = "https://backend-one-theta-43.vercel.app/api/:splat"
-  status = 200
+  VITE_API_URL = "https://tish-production.up.railway.app"
 
 # Optional: route everything to index.html (SPA)
 [[redirects]]
