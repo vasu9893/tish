@@ -172,9 +172,10 @@ router.get('/auth/instagram/callback', async (req, res) => {
     console.log('Long-lived user token obtained, expires in:', userTokenExpiresIn, 'seconds')
     console.log('User token expiry type:', typeof userTokenExpiresIn)
     console.log('User token expiry value:', userTokenExpiresIn)
+    console.log('User token response data keys:', Object.keys(longLivedUserResponse.data))
 
-    // Validate user token expiry value
-    if (!userTokenExpiresIn || isNaN(userTokenExpiresIn) || userTokenExpiresIn <= 0) {
+    // Validate user token expiry value - Meta sometimes doesn't return expires_in for long-lived tokens
+    if (userTokenExpiresIn && (isNaN(userTokenExpiresIn) || userTokenExpiresIn <= 0)) {
       console.error('Invalid user token expiry value:', {
         value: userTokenExpiresIn,
         type: typeof userTokenExpiresIn,
@@ -186,6 +187,11 @@ router.get('/auth/instagram/callback', async (req, res) => {
         error: 'Invalid user token expiry value received from Meta',
         details: `Expected positive number, got: ${userTokenExpiresIn} (${typeof userTokenExpiresIn})`
       })
+    }
+    
+    // If no expiry provided, assume it's already a long-lived token
+    if (!userTokenExpiresIn) {
+      console.log('No expiry provided for user token - assuming already long-lived')
     }
 
     // Get user's pages
@@ -259,9 +265,10 @@ router.get('/auth/instagram/callback', async (req, res) => {
     console.log('Long-lived page token obtained, expires in:', pageTokenExpiresIn, 'seconds')
     console.log('Page token expiry type:', typeof pageTokenExpiresIn)
     console.log('Page token expiry value:', pageTokenExpiresIn)
+    console.log('Page token response data keys:', Object.keys(longLivedPageResponse.data))
 
-    // Validate expiry value
-    if (!pageTokenExpiresIn || isNaN(pageTokenExpiresIn) || pageTokenExpiresIn <= 0) {
+    // Validate expiry value - Meta sometimes doesn't return expires_in for long-lived tokens
+    if (pageTokenExpiresIn && (isNaN(pageTokenExpiresIn) || pageTokenExpiresIn <= 0)) {
       console.error('Invalid page token expiry value:', {
         value: pageTokenExpiresIn,
         type: typeof pageTokenExpiresIn,
@@ -274,6 +281,11 @@ router.get('/auth/instagram/callback', async (req, res) => {
         details: `Expected positive number, got: ${pageTokenExpiresIn} (${typeof pageTokenExpiresIn})`
       })
     }
+    
+    // If no expiry provided, assume it's already a long-lived token
+    if (!pageTokenExpiresIn) {
+      console.log('No expiry provided for page token - assuming already long-lived')
+    }
 
     // Calculate token expiry (use page token expiry)
     console.log('=== STEP 5: Save to Database ===')
@@ -285,10 +297,10 @@ router.get('/auth/instagram/callback', async (req, res) => {
       tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + parseInt(pageTokenExpiresIn))
       console.log('Using Meta-provided expiry:', pageTokenExpiresIn, 'seconds')
     } else {
-      // Fallback to 60 days (typical for long-lived tokens)
+      // No expiry provided or invalid - use 60 days (typical for long-lived tokens)
       tokenExpiresAt = new Date()
       tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60)
-      console.log('Using fallback expiry: 60 days from now')
+      console.log('No valid expiry provided - using fallback: 60 days from now')
     }
     
     // Validate the calculated date
