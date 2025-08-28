@@ -211,6 +211,54 @@ class MetaApiHelper {
   }
 
   /**
+   * Exchange authorization code for Instagram access token (Direct Instagram OAuth)
+   * @param {string} code - Authorization code from Instagram OAuth
+   * @returns {Promise<Object>} Instagram token response
+   */
+  async exchangeInstagramCodeForToken(code) {
+    try {
+      console.log('Exchanging Instagram code for token:', {
+        code: code ? code.substring(0, 10) + '...' : 'none',
+        redirectUri: process.env.BACKEND_URL 
+          ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
+          : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
+      })
+
+      const response = await axios.post(
+        'https://api.instagram.com/oauth/access_token',
+        null,
+        {
+          params: {
+            client_id: process.env.META_APP_ID,
+            client_secret: process.env.META_APP_SECRET,
+            grant_type: 'authorization_code',
+            redirect_uri: process.env.BACKEND_URL 
+              ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
+              : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback',
+            code: code
+          }
+        }
+      )
+      
+      console.log('Instagram token exchange successful:', {
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : 'no data'
+      })
+      
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error exchanging Instagram code for token:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
    * Get long-lived access token
    * @param {string} shortLivedToken - Short-lived access token
    * @returns {Promise<Object>} Long-lived token response

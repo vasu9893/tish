@@ -111,7 +111,7 @@ const ConnectInstagram = ({ user, onLogout }) => {
             Connect Your Instagram Account
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Connect your Instagram business account to receive and send direct messages 
+            Connect directly to Instagram (no Facebook required) to receive and send direct messages 
             directly through InstantChat. Manage all your Instagram conversations in one place.
           </p>
         </div>

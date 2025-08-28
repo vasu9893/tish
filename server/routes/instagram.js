@@ -15,7 +15,7 @@ router.get('/test', (req, res) => {
   })
 })
 
-// Instagram OAuth - Start the flow
+// Instagram OAuth - Start the flow (Direct Instagram)
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.META_APP_ID
   // Use environment variable or fallback to Railway URL
@@ -23,22 +23,26 @@ router.get('/auth/instagram', (req, res) => {
     ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
     : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
   
-  const scope = 'instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_read_engagement'
+  // Direct Instagram OAuth scopes (no Facebook pages required)
+  const scope = 'instagram_basic,instagram_manage_messages,instagram_content_publish'
   
-  const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${Date.now()}`
+  // Direct Instagram OAuth URL (not Facebook)
+  const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${Date.now()}`
   
-  console.log('Instagram OAuth initiated:', {
+  console.log('Direct Instagram OAuth initiated:', {
     appId,
     redirectUri,
     scope,
-    authUrl
+    authUrl,
+    type: 'Direct Instagram OAuth (not Facebook)'
   })
   
   res.json({ 
     success: true, 
     authUrl: authUrl,
-    message: 'Redirect user to this URL to authorize Instagram access',
-    redirectUri: redirectUri // Include this for debugging
+    message: 'Redirect user to this URL to authorize Instagram access directly',
+    redirectUri: redirectUri,
+    oauthType: 'Direct Instagram (no Facebook required)'
   })
 })
 
@@ -54,16 +58,17 @@ router.get('/auth/instagram/callback/test', (req, res) => {
   })
 })
 
-// Instagram OAuth Callback
+// Instagram OAuth Callback (Direct Instagram)
 router.get('/auth/instagram/callback', async (req, res) => {
   try {
     const { code, state } = req.query
     
-    console.log('Instagram OAuth callback received:', {
+    console.log('Direct Instagram OAuth callback received:', {
       code: code ? 'present' : 'missing',
       state: state,
       query: req.query,
-      headers: req.headers
+      headers: req.headers,
+      type: 'Direct Instagram OAuth'
     })
     
     if (!code) {
@@ -74,8 +79,8 @@ router.get('/auth/instagram/callback', async (req, res) => {
       })
     }
 
-    // Exchange code for access token
-    console.log('=== STEP 1: Token Exchange ===')
+    // Exchange code for access token (Direct Instagram)
+    console.log('=== STEP 1: Direct Instagram Token Exchange ===')
     console.log('Code received:', code ? 'YES' : 'NO')
     console.log('Code length:', code ? code.length : 0)
     console.log('Environment variables:', {
@@ -84,7 +89,8 @@ router.get('/auth/instagram/callback', async (req, res) => {
       BACKEND_URL: process.env.BACKEND_URL || 'not set'
     })
     
-    const tokenResponse = await metaApi.exchangeCodeForToken(code)
+    // Use Instagram-specific token exchange
+    const tokenResponse = await metaApi.exchangeInstagramCodeForToken(code)
     
     console.log('Token exchange response:', {
       success: tokenResponse.success,

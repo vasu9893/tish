@@ -16,15 +16,19 @@ const instagramUserSchema = new mongoose.Schema({
   },
   pageId: {
     type: String,
-    required: true
+    required: false // Optional for direct Instagram connections
   },
   pageAccessToken: {
     type: String,
-    required: true
+    required: false // Optional for direct Instagram connections
   },
   longLivedToken: {
     type: String,
-    required: true
+    required: false // Optional for direct Instagram connections
+  },
+  instagramAccessToken: {
+    type: String,
+    required: false // For direct Instagram OAuth
   },
   userAccessToken: {
     type: String,
