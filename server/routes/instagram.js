@@ -65,7 +65,9 @@ router.get('/auth/instagram/callback', async (req, res) => {
     }
 
     // Exchange code for access token
-    console.log('Attempting token exchange with code:', code ? 'present' : 'missing')
+    console.log('=== STEP 1: Token Exchange ===')
+    console.log('Code received:', code ? 'YES' : 'NO')
+    console.log('Code length:', code ? code.length : 0)
     console.log('Environment variables:', {
       META_APP_ID: process.env.META_APP_ID ? 'set' : 'missing',
       META_APP_SECRET: process.env.META_APP_SECRET ? 'set' : 'missing',
@@ -74,7 +76,12 @@ router.get('/auth/instagram/callback', async (req, res) => {
     
     const tokenResponse = await metaApi.exchangeCodeForToken(code)
     
-    console.log('Token exchange response:', tokenResponse)
+    console.log('Token exchange response:', {
+      success: tokenResponse.success,
+      hasData: !!tokenResponse.data,
+      dataKeys: tokenResponse.data ? Object.keys(tokenResponse.data) : 'no data',
+      error: tokenResponse.error
+    })
     
     if (!tokenResponse.success) {
       console.error('Token exchange failed:', tokenResponse)
@@ -88,22 +95,81 @@ router.get('/auth/instagram/callback', async (req, res) => {
 
     const { access_token, user_id } = tokenResponse.data
 
+    // Validate required data
+    if (!access_token || !user_id) {
+      console.error('Missing required data from token response:', {
+        hasAccessToken: !!access_token,
+        hasUserId: !!user_id,
+        dataKeys: Object.keys(tokenResponse.data || {})
+      })
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid token response - missing access_token or user_id'
+      })
+    }
+
+    console.log('Token response validation passed:', {
+      hasAccessToken: !!access_token,
+      hasUserId: !!user_id,
+      userId: user_id
+    })
+
     // Get long-lived user token
+    console.log('=== STEP 2: Get Long-lived User Token ===')
+    console.log('Short-lived token length:', access_token ? access_token.length : 0)
+    
     const longLivedUserResponse = await metaApi.getLongLivedToken(access_token)
     
+    console.log('Long-lived user token response:', {
+      success: longLivedUserResponse.success,
+      hasData: !!longLivedUserResponse.data,
+      dataKeys: longLivedUserResponse.data ? Object.keys(longLivedUserResponse.data) : 'no data',
+      fullData: longLivedUserResponse.data,
+      error: longLivedUserResponse.error
+    })
+    
     if (!longLivedUserResponse.success) {
+      console.error('Failed to get long-lived user token:', longLivedUserResponse.error)
       return res.status(400).json({ 
         success: false, 
-        error: 'Failed to get long-lived user token' 
+        error: 'Failed to get long-lived user token',
+        details: longLivedUserResponse.error
       })
     }
 
     const { access_token: longLivedUserToken, expires_in: userTokenExpiresIn } = longLivedUserResponse.data
+    console.log('Long-lived user token obtained, expires in:', userTokenExpiresIn, 'seconds')
+    console.log('User token expiry type:', typeof userTokenExpiresIn)
+    console.log('User token expiry value:', userTokenExpiresIn)
+
+    // Validate user token expiry value
+    if (!userTokenExpiresIn || isNaN(userTokenExpiresIn) || userTokenExpiresIn <= 0) {
+      console.error('Invalid user token expiry value:', {
+        value: userTokenExpiresIn,
+        type: typeof userTokenExpiresIn,
+        isNaN: isNaN(userTokenExpiresIn),
+        isPositive: userTokenExpiresIn > 0
+      })
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user token expiry value received from Meta',
+        details: `Expected positive number, got: ${userTokenExpiresIn} (${typeof userTokenExpiresIn})`
+      })
+    }
 
     // Get user's pages
+    console.log('=== STEP 3: Get User Pages ===')
+    console.log('Using long-lived user token, length:', longLivedUserToken ? longLivedUserToken.length : 0)
+    
     const pagesResponse = await metaApi.getUserPages(longLivedUserToken)
     
-    console.log('Pages response:', pagesResponse)
+    console.log('Pages response:', {
+      success: pagesResponse.success,
+      hasData: !!pagesResponse.data,
+      dataKeys: pagesResponse.data ? Object.keys(pagesResponse.data) : 'no data',
+      pagesCount: pagesResponse.data?.data?.length || 0,
+      error: pagesResponse.error
+    })
     
     if (!pagesResponse.success) {
       console.error('Failed to get user pages:', pagesResponse.error)
@@ -116,6 +182,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
 
     const pages = pagesResponse.data.data || []
     console.log('User pages found:', pages.length)
+    console.log('Pages details:', pages.map(p => ({ id: p.id, name: p.name, hasInstagram: !!p.instagram_business_account })))
     
     // Find a page with Instagram business account
     const pageWithInstagram = pages.find(page => page.instagram_business_account)
@@ -132,9 +199,21 @@ router.get('/auth/instagram/callback', async (req, res) => {
     const { id: pageId, name: pageName, access_token: pageAccessToken, instagram_business_account } = pageWithInstagram
 
     // Get long-lived page token
+    console.log('=== STEP 4: Get Long-lived Page Token ===')
+    console.log('Page access token length:', pageAccessToken ? pageAccessToken.length : 0)
+    console.log('Page ID:', pageId)
+    console.log('Page name:', pageName)
+    console.log('Instagram business account ID:', instagram_business_account?.id)
+    
     const longLivedPageResponse = await metaApi.getLongLivedToken(pageAccessToken)
     
-    console.log('Page token exchange response:', longLivedPageResponse)
+    console.log('Page token exchange response:', {
+      success: longLivedPageResponse.success,
+      hasData: !!longLivedPageResponse.data,
+      dataKeys: longLivedPageResponse.data ? Object.keys(longLivedPageResponse.data) : 'no data',
+      fullData: longLivedPageResponse.data,
+      error: longLivedPageResponse.error
+    })
     
     if (!longLivedPageResponse.success) {
       console.error('Failed to get long-lived page token:', longLivedPageResponse.error)
@@ -146,12 +225,60 @@ router.get('/auth/instagram/callback', async (req, res) => {
     }
 
     const { access_token: longLivedPageToken, expires_in: pageTokenExpiresIn } = longLivedPageResponse.data
+    console.log('Long-lived page token obtained, expires in:', pageTokenExpiresIn, 'seconds')
+    console.log('Page token expiry type:', typeof pageTokenExpiresIn)
+    console.log('Page token expiry value:', pageTokenExpiresIn)
+
+    // Validate expiry value
+    if (!pageTokenExpiresIn || isNaN(pageTokenExpiresIn) || pageTokenExpiresIn <= 0) {
+      console.error('Invalid page token expiry value:', {
+        value: pageTokenExpiresIn,
+        type: typeof pageTokenExpiresIn,
+        isNaN: isNaN(pageTokenExpiresIn),
+        isPositive: pageTokenExpiresIn > 0
+      })
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid token expiry value received from Meta',
+        details: `Expected positive number, got: ${pageTokenExpiresIn} (${typeof pageTokenExpiresIn})`
+      })
+    }
 
     // Calculate token expiry (use page token expiry)
-    const tokenExpiresAt = new Date()
-    tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + pageTokenExpiresIn)
+    console.log('=== STEP 5: Save to Database ===')
+    
+    let tokenExpiresAt
+    if (pageTokenExpiresIn && !isNaN(pageTokenExpiresIn) && pageTokenExpiresIn > 0) {
+      // Use Meta's provided expiry
+      tokenExpiresAt = new Date()
+      tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + parseInt(pageTokenExpiresIn))
+      console.log('Using Meta-provided expiry:', pageTokenExpiresIn, 'seconds')
+    } else {
+      // Fallback to 60 days (typical for long-lived tokens)
+      tokenExpiresAt = new Date()
+      tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60)
+      console.log('Using fallback expiry: 60 days from now')
+    }
+    
+    // Validate the calculated date
+    if (isNaN(tokenExpiresAt.getTime())) {
+      console.error('Failed to calculate valid expiry date:', {
+        originalExpiry: pageTokenExpiresIn,
+        calculatedDate: tokenExpiresAt,
+        isInvalid: isNaN(tokenExpiresAt.getTime())
+      })
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to calculate token expiry date',
+        details: 'Date calculation resulted in invalid date'
+      })
+    }
+    
+    console.log('Token expires at:', tokenExpiresAt.toISOString())
+    console.log('Token expiry validation passed')
 
     // Save or update Instagram user connection
+    console.log('Saving Instagram user to database...')
     const instagramUser = await InstagramUser.findOneAndUpdate(
       { userId: user_id },
       {
@@ -170,7 +297,17 @@ router.get('/auth/instagram/callback', async (req, res) => {
       },
       { upsert: true, new: true }
     )
+    
+    console.log('Instagram user saved successfully:', {
+      id: instagramUser._id,
+      userId: instagramUser.userId,
+      pageId: instagramUser.pageId,
+      pageName: instagramUser.pageName
+    })
 
+    console.log('=== SUCCESS: Instagram OAuth Complete ===')
+    console.log('All steps completed successfully!')
+    
     res.json({
       success: true,
       message: 'Instagram connected successfully!',
@@ -183,10 +320,19 @@ router.get('/auth/instagram/callback', async (req, res) => {
     })
 
   } catch (error) {
-    console.error('Instagram OAuth callback error:', error)
+    console.error('Instagram OAuth callback error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status
+    })
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to complete Instagram authentication' 
+      error: 'Failed to complete Instagram authentication',
+      details: error.message,
+      code: error.code || 'UNKNOWN_ERROR'
     })
   }
 })
