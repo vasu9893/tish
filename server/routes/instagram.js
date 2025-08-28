@@ -383,7 +383,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
 // Send message to Instagram
 router.post('/sendMessage', authMiddleware, async (req, res) => {
   try {
-    const { recipientId, message, threadId } = req.body
+    const { recipientId, message, threadId, messageType = 'text' } = req.body
     const userId = req.user.id
 
     if (!recipientId || !message) {
@@ -414,7 +414,8 @@ router.post('/sendMessage', authMiddleware, async (req, res) => {
     const apiResponse = await metaApi.sendInstagramMessage(
       instagramUser.pageAccessToken,
       recipientId,
-      message
+      message,
+      messageType
     )
 
     if (!apiResponse.success) {
@@ -436,7 +437,8 @@ router.post('/sendMessage', authMiddleware, async (req, res) => {
       isToInstagram: true,
       instagramSenderId: recipientId,
       instagramMessageId: apiResponse.messageId,
-      instagramThreadId: threadId
+      instagramThreadId: threadId,
+      messageType: messageType
     })
 
     await newMessage.save()
@@ -447,7 +449,8 @@ router.post('/sendMessage', authMiddleware, async (req, res) => {
       data: {
         messageId: newMessage._id,
         instagramMessageId: apiResponse.messageId,
-        timestamp: newMessage.timestamp
+        timestamp: newMessage.timestamp,
+        messageType: messageType
       }
     })
 
@@ -456,6 +459,123 @@ router.post('/sendMessage', authMiddleware, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to send Instagram message' 
+    })
+  }
+})
+
+// Send bulk messages to multiple Instagram users
+router.post('/sendBulkMessage', authMiddleware, async (req, res) => {
+  try {
+    const { recipientIds, message, messageType = 'text', delayMs = 1000 } = req.body
+    const userId = req.user.id
+
+    if (!recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Recipient IDs array is required and must not be empty' 
+      })
+    }
+
+    if (!message) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Message is required' 
+      })
+    }
+
+    // Get user's Instagram connection
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    if (!instagramUser || !instagramUser.isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram not connected. Please connect your Instagram account first.' 
+      })
+    }
+
+    if (instagramUser.isTokenExpired()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram access token expired. Please reconnect your account.' 
+      })
+    }
+
+    const results = []
+    const errors = []
+
+    // Send messages with delay to avoid rate limiting
+    for (let i = 0; i < recipientIds.length; i++) {
+      try {
+        const recipientId = recipientIds[i]
+        
+        // Add delay between messages (except for the first one)
+        if (i > 0 && delayMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+
+        const apiResponse = await metaApi.sendInstagramMessage(
+          instagramUser.pageAccessToken,
+          recipientId,
+          message,
+          messageType
+        )
+
+        if (apiResponse.success) {
+          // Save message to database
+          const newMessage = new Message({
+            sender: instagramUser.pageName || 'You',
+            content: message,
+            userId: userId,
+            timestamp: new Date(),
+            room: 'instagram',
+            source: 'local',
+            isToInstagram: true,
+            instagramSenderId: recipientId,
+            instagramMessageId: apiResponse.messageId,
+            messageType: messageType
+          })
+
+          await newMessage.save()
+
+          results.push({
+            recipientId,
+            success: true,
+            messageId: newMessage._id,
+            instagramMessageId: apiResponse.messageId
+          })
+        } else {
+          errors.push({
+            recipientId,
+            success: false,
+            error: apiResponse.error
+          })
+        }
+      } catch (error) {
+        errors.push({
+          recipientId: recipientIds[i],
+          success: false,
+          error: error.message
+        })
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Bulk message sent to ${results.length} recipients`,
+      data: {
+        totalRecipients: recipientIds.length,
+        successful: results.length,
+        failed: errors.length,
+        results,
+        errors
+      }
+    })
+
+  } catch (error) {
+    console.error('Send bulk Instagram message error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to send bulk Instagram messages' 
     })
   }
 })
@@ -499,6 +619,214 @@ router.get('/status', authMiddleware, async (req, res) => {
   }
 })
 
+// Get Instagram conversations
+router.get('/conversations', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    const { limit = 50, offset = 0 } = req.query
+
+    // Get user's Instagram connection
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    if (!instagramUser || !instagramUser.isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram not connected. Please connect your Instagram account first.' 
+      })
+    }
+
+    // Get conversations from messages
+    const conversations = await Message.aggregate([
+      { 
+        $match: { 
+          userId: userId, 
+          room: 'instagram',
+          $or: [
+            { isToInstagram: true },
+            { source: 'instagram' }
+          ]
+        } 
+      },
+      {
+        $group: {
+          _id: '$instagramSenderId',
+          lastMessage: { $last: '$$ROOT' },
+          messageCount: { $sum: 1 },
+          lastActivity: { $max: '$timestamp' }
+        }
+      },
+      { $sort: { lastActivity: -1 } },
+      { $skip: parseInt(offset) },
+      { $limit: parseInt(limit) }
+    ])
+
+    res.json({
+      success: true,
+      data: {
+        conversations,
+        total: conversations.length,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    })
+
+  } catch (error) {
+    console.error('Get Instagram conversations error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get Instagram conversations' 
+    })
+  }
+})
+
+// Get conversation messages
+router.get('/conversations/:recipientId/messages', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    const { recipientId } = req.params
+    const { limit = 100, offset = 0 } = req.query
+
+    // Get user's Instagram connection
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    if (!instagramUser || !instagramUser.isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram not connected. Please connect your Instagram account first.' 
+      })
+    }
+
+    // Get messages for this conversation
+    const messages = await Message.find({
+      userId: userId,
+      room: 'instagram',
+      $or: [
+        { instagramSenderId: recipientId },
+        { instagramRecipientId: recipientId }
+      ]
+    })
+    .sort({ timestamp: -1 })
+    .skip(parseInt(offset))
+    .limit(parseInt(limit))
+
+    res.json({
+      success: true,
+      data: {
+        messages: messages.reverse(), // Show oldest first
+        recipientId,
+        total: messages.length,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    })
+
+  } catch (error) {
+    console.error('Get conversation messages error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get conversation messages' 
+    })
+  }
+})
+
+// Subscribe to Instagram webhooks
+router.post('/subscribe-webhook', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+
+    if (!instagramUser || !instagramUser.isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram not connected. Please connect your Instagram account first.' 
+      })
+    }
+
+    // Subscribe to webhooks using Meta API
+    const subscriptionResponse = await metaApi.subscribeToWebhooks(
+      instagramUser.pageAccessToken,
+      instagramUser.pageId
+    )
+
+    if (subscriptionResponse.success) {
+      // Update database
+      instagramUser.webhookSubscribed = true
+      instagramUser.lastWebhookSubscription = new Date()
+      await instagramUser.save()
+
+      res.json({
+        success: true,
+        message: 'Webhook subscription successful',
+        data: {
+          webhookSubscribed: true,
+          lastSubscription: instagramUser.lastWebhookSubscription
+        }
+      })
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Failed to subscribe to webhooks',
+        details: subscriptionResponse.error
+      })
+    }
+
+  } catch (error) {
+    console.error('Webhook subscription error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to subscribe to webhooks' 
+    })
+  }
+})
+
+// Unsubscribe from Instagram webhooks
+router.delete('/unsubscribe-webhook', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+
+    if (!instagramUser || !instagramUser.isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram not connected. Please connect your Instagram account first.' 
+      })
+    }
+
+    // Unsubscribe from webhooks using Meta API
+    const unsubscriptionResponse = await metaApi.unsubscribeFromWebhooks(
+      instagramUser.pageAccessToken,
+      instagramUser.pageId
+    )
+
+    if (unsubscriptionResponse.success) {
+      // Update database
+      instagramUser.webhookSubscribed = false
+      await instagramUser.save()
+
+      res.json({
+        success: true,
+        message: 'Webhook unsubscription successful',
+        data: {
+          webhookSubscribed: false
+        }
+      })
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Failed to unsubscribe from webhooks',
+        details: unsubscriptionResponse.error
+      })
+    }
+
+  } catch (error) {
+    console.error('Webhook unsubscription error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to unsubscribe from webhooks' 
+    })
+  }
+})
+
 // Disconnect Instagram
 router.delete('/disconnect', authMiddleware, async (req, res) => {
   try {
@@ -522,6 +850,138 @@ router.delete('/disconnect', authMiddleware, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to disconnect Instagram' 
+    })
+  }
+})
+
+// Instagram webhook verification (GET request from Meta)
+router.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode']
+  const token = req.query['hub.verify_token']
+  const challenge = req.query['hub.challenge']
+
+  console.log('Webhook verification request:', {
+    mode,
+    token,
+    challenge: challenge ? 'present' : 'missing'
+  })
+
+  // Verify token should match your app's verify token
+  const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instantchat_verify_token'
+
+  if (mode === 'subscribe' && token === verifyToken) {
+    console.log('Webhook verified successfully')
+    res.status(200).send(challenge)
+  } else {
+    console.error('Webhook verification failed:', {
+      mode,
+      token,
+      expectedToken: verifyToken
+    })
+    res.status(403).send('Forbidden')
+  }
+})
+
+// Instagram webhook for incoming messages (POST request from Meta)
+router.post('/webhook', async (req, res) => {
+  try {
+    console.log('Instagram webhook received:', {
+      body: req.body,
+      headers: req.headers
+    })
+
+    const { object, entry } = req.body
+
+    if (object !== 'instagram') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid webhook object type' 
+      })
+    }
+
+    if (!entry || !Array.isArray(entry)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid webhook entry format' 
+      })
+    }
+
+    const processedEvents = []
+
+    for (const entryItem of entry) {
+      const { id: pageId, messaging } = entryItem
+
+      if (messaging && Array.isArray(messaging)) {
+        for (const messageEvent of messaging) {
+          try {
+            const { sender, recipient, message, timestamp } = messageEvent
+
+            if (message && message.text) {
+              // Find the Instagram user by page ID
+              const instagramUser = await InstagramUser.findOne({ 
+                pageId: pageId.toString(),
+                isConnected: true 
+              })
+
+              if (!instagramUser) {
+                console.log('No Instagram user found for page ID:', pageId)
+                continue
+              }
+
+              // Save incoming message to database
+              const newMessage = new Message({
+                sender: sender.id,
+                content: message.text,
+                userId: instagramUser.userId,
+                timestamp: new Date(timestamp * 1000),
+                room: 'instagram',
+                source: 'instagram',
+                isToInstagram: false,
+                instagramSenderId: sender.id,
+                instagramRecipientId: recipient.id,
+                instagramMessageId: message.mid,
+                messageType: 'text'
+              })
+
+              await newMessage.save()
+
+              processedEvents.push({
+                type: 'message',
+                senderId: sender.id,
+                messageId: newMessage._id,
+                content: message.text
+              })
+
+              console.log('Incoming Instagram message saved:', {
+                messageId: newMessage._id,
+                senderId: sender.id,
+                content: message.text
+              })
+
+              // TODO: Trigger automation flows here
+              // await triggerAutomationFlows(instagramUser.userId, sender.id, message.text)
+            }
+          } catch (error) {
+            console.error('Error processing webhook message:', error)
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Webhook processed successfully',
+      data: {
+        processedEvents: processedEvents.length,
+        events: processedEvents
+      }
+    })
+
+  } catch (error) {
+    console.error('Instagram webhook error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process Instagram webhook' 
     })
   }
 })

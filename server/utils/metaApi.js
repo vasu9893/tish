@@ -10,15 +10,40 @@ class MetaApiHelper {
    * @param {string} pageAccessToken - Page access token
    * @param {string} recipientId - Instagram user ID
    * @param {string} message - Message text to send
+   * @param {string} messageType - Type of message (text, image, etc.)
    * @returns {Promise<Object>} API response
    */
-  async sendInstagramMessage(pageAccessToken, recipientId, message) {
+  async sendInstagramMessage(pageAccessToken, recipientId, message, messageType = 'text') {
     try {
+      let messagePayload
+
+      switch (messageType) {
+        case 'text':
+          messagePayload = { text: message }
+          break
+        case 'image':
+          messagePayload = { 
+            attachment: {
+              type: 'image',
+              payload: { url: message }
+            }
+          }
+          break
+        case 'quick_reply':
+          messagePayload = {
+            text: message.text || 'Choose an option:',
+            quick_replies: message.quickReplies || []
+          }
+          break
+        default:
+          messagePayload = { text: message }
+      }
+
       const response = await axios.post(
         `${this.graphUrl}/me/messages`,
         {
           recipient: { id: recipientId },
-          message: { text: message }
+          message: messagePayload
         },
         {
           params: {
@@ -210,6 +235,145 @@ class MetaApiHelper {
       }
     } catch (error) {
       console.error('Error getting long-lived token:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Subscribe to Instagram webhooks
+   * @param {string} pageAccessToken - Page access token
+   * @param {string} pageId - Page ID
+   * @returns {Promise<Object>} Subscription response
+   */
+  async subscribeToWebhooks(pageAccessToken, pageId) {
+    try {
+      const webhookUrl = process.env.BACKEND_URL || 'https://tish-production.up.railway.app'
+      const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instantchat_verify_token'
+
+      const response = await axios.post(
+        `${this.graphUrl}/${pageId}/subscribed_apps`,
+        {
+          subscribed_fields: ['messages', 'messaging_postbacks', 'messaging_optins'],
+          webhook_url: `${webhookUrl}/api/instagram/webhook`,
+          verify_token: verifyToken
+        },
+        {
+          params: {
+            access_token: pageAccessToken
+          },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error subscribing to webhooks:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Unsubscribe from Instagram webhooks
+   * @param {string} pageAccessToken - Page access token
+   * @param {string} pageId - Page ID
+   * @returns {Promise<Object>} Unsubscription response
+   */
+  async unsubscribeFromWebhooks(pageAccessToken, pageId) {
+    try {
+      const response = await axios.delete(
+        `${this.graphUrl}/${pageId}/subscribed_apps`,
+        {
+          params: {
+            access_token: pageAccessToken
+          }
+        }
+      )
+      
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error unsubscribing from webhooks:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Get Instagram user profile
+   * @param {string} pageAccessToken - Page access token
+   * @param {string} instagramUserId - Instagram user ID
+   * @returns {Promise<Object>} User profile response
+   */
+  async getInstagramUserProfile(pageAccessToken, instagramUserId) {
+    try {
+      const response = await axios.get(
+        `${this.graphUrl}/${instagramUserId}`,
+        {
+          params: {
+            access_token: pageAccessToken,
+            fields: 'id,username,name,profile_picture_url'
+          }
+        }
+      )
+      
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error getting Instagram user profile:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Send typing indicator
+   * @param {string} pageAccessToken - Page access token
+   * @param {string} recipientId - Instagram user ID
+   * @returns {Promise<Object>} API response
+   */
+  async sendTypingIndicator(pageAccessToken, recipientId) {
+    try {
+      const response = await axios.post(
+        `${this.graphUrl}/me/messages`,
+        {
+          recipient: { id: recipientId },
+          sender_action: 'typing_on'
+        },
+        {
+          params: {
+            access_token: pageAccessToken
+          },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error sending typing indicator:', error.response?.data || error.message)
       return {
         success: false,
         error: error.response?.data || error.message

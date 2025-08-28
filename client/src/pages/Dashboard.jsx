@@ -20,6 +20,9 @@ import {
 import Chats from './Chats'
 import FlowBuilder from './FlowBuilder'
 import Settings from './Settings'
+import InstagramChat from '../components/InstagramChat'
+import InstagramAutomation from '../components/InstagramAutomation'
+import InstagramAnalytics from '../components/InstagramAnalytics'
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('chats')
@@ -124,27 +127,35 @@ const Dashboard = ({ user, onLogout }) => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
-            <TabsTrigger value="chats" className="flex items-center space-x-2">
-              <MessageCircle className="w-4 h-4" />
-              <span>Chats</span>
-            </TabsTrigger>
-            <TabsTrigger value="flows" className="flex items-center space-x-2">
-              <Bot className="w-4 h-4" />
-              <span>Flows</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <SettingsIcon className="w-4 h-4" />
-              <span>Settings</span>
-            </TabsTrigger>
-          </TabsList>
+                  <TabsList className="grid w-full grid-cols-5 max-w-2xl mx-auto">
+          <TabsTrigger value="chats" className="flex items-center space-x-2">
+            <MessageCircle className="w-4 h-4" />
+            <span>Chats</span>
+          </TabsTrigger>
+          <TabsTrigger value="instagram" className="flex items-center space-x-2">
+            <Instagram className="w-4 h-4" />
+            <span>Instagram</span>
+          </TabsTrigger>
+          <TabsTrigger value="flows" className="flex items-center space-x-2">
+            <Bot className="w-4 h-4" />
+            <span>Flows</span>
+          </TabsTrigger>
+          <TabsTrigger value="automation" className="flex items-center space-x-2">
+            <Zap className="w-4 h-4" />
+            <span>Automation</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center space-x-2">
+            <SettingsIcon className="w-4 h-4" />
+            <span>Settings</span>
+          </TabsTrigger>
+        </TabsList>
 
           {/* Chats Tab */}
           <TabsContent value="chats" className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Instagram Conversations</h2>
-                <p className="text-gray-600">Manage your Instagram direct messages and automation</p>
+                <h2 className="text-2xl font-bold text-gray-900">General Chat</h2>
+                <p className="text-gray-600">Manage your general conversations and messages</p>
               </div>
               <div className="flex space-x-2">
                 <Button 
@@ -155,20 +166,53 @@ const Dashboard = ({ user, onLogout }) => {
                   <RefreshCw className="w-4 h-4" />
                   <span>Refresh</span>
                 </Button>
-                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Flow
-                </Button>
               </div>
             </div>
             <Chats user={user} />
+          </TabsContent>
+
+          {/* Instagram Tab */}
+          <TabsContent value="instagram" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Instagram Management</h2>
+                <p className="text-gray-600">Direct messaging, conversations, analytics, and Instagram automation</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </Button>
+              </div>
+            </div>
+            
+            {/* Instagram Sub-tabs */}
+            <div className="bg-white rounded-lg border">
+              <div className="border-b">
+                <nav className="flex space-x-8 px-6">
+                  <button className="py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium">
+                    Chat
+                  </button>
+                  <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium">
+                    Analytics
+                  </button>
+                </nav>
+              </div>
+              <div className="p-6">
+                <InstagramChat />
+              </div>
+            </div>
           </TabsContent>
 
           {/* Flows Tab */}
           <TabsContent value="flows" className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Automation Flows</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Flow Builder</h2>
                 <p className="text-gray-600">Build and manage your automated conversation workflows</p>
               </div>
               <Button 
@@ -180,6 +224,27 @@ const Dashboard = ({ user, onLogout }) => {
               </Button>
             </div>
             <FlowBuilder user={user} />
+          </TabsContent>
+
+          {/* Automation Tab */}
+          <TabsContent value="automation" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Instagram Automation</h2>
+                <p className="text-gray-600">Manage automation flows, webhooks, and Instagram-specific features</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </Button>
+              </div>
+            </div>
+            <InstagramAutomation />
           </TabsContent>
 
           {/* Settings Tab */}
