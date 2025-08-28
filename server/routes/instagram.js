@@ -351,16 +351,44 @@ router.get('/auth/instagram/callback', async (req, res) => {
     console.log('=== SUCCESS: Instagram OAuth Complete ===')
     console.log('All steps completed successfully!')
     
-    res.json({
-      success: true,
-      message: 'Instagram connected successfully!',
-      data: {
-        pageId: instagramUser.pageId,
-        pageName: instagramUser.pageName,
-        instagramAccountId: instagramUser.instagramAccountId,
-        tokenExpiresAt: instagramUser.tokenExpiresAt
-      }
+    // Redirect to frontend with success parameters instead of sending JSON
+    const frontendUrl = process.env.FRONTEND_URL || 'https://instantchat.in'
+    const dashboardRedirectUrl = `${frontendUrl}/dashboard?instagram=success&pageId=${instagramUser.pageId}&pageName=${encodeURIComponent(instagramUser.pageName)}&instagramAccountId=${instagramUser.instagramAccountId}`
+    const oauthCallbackUrl = `${frontendUrl}/oauth-callback?instagram=success&pageId=${instagramUser.pageId}&pageName=${encodeURIComponent(instagramUser.pageName)}&instagramAccountId=${instagramUser.instagramAccountId}`
+    
+    console.log('Redirecting to frontend dashboard:', dashboardRedirectUrl)
+    console.log('Alternative OAuth callback URL:', oauthCallbackUrl)
+    console.log('Frontend URL from env:', process.env.FRONTEND_URL)
+    console.log('Instagram user data for redirect:', {
+      pageId: instagramUser.pageId,
+      pageName: instagramUser.pageName,
+      instagramAccountId: instagramUser.instagramAccountId
     })
+    
+    // Try to redirect to dashboard first, fallback to OAuth callback if needed
+    try {
+      res.status(302).redirect(dashboardRedirectUrl)
+    } catch (redirectError) {
+      console.error('Dashboard redirect failed, trying OAuth callback:', redirectError)
+      try {
+        res.status(302).redirect(oauthCallbackUrl)
+      } catch (callbackRedirectError) {
+        console.error('OAuth callback redirect also failed, falling back to JSON response:', callbackRedirectError)
+        // Final fallback: send JSON response with redirect instructions
+        res.json({
+          success: true,
+          message: 'Instagram connected successfully! Please return to your dashboard.',
+          dashboardUrl: dashboardRedirectUrl,
+          oauthCallbackUrl: oauthCallbackUrl,
+          data: {
+            pageId: instagramUser.pageId,
+            pageName: instagramUser.pageName,
+            instagramAccountId: instagramUser.instagramAccountId,
+            tokenExpiresAt: instagramUser.tokenExpiresAt
+          }
+        })
+      }
+    }
 
   } catch (error) {
     console.error('Instagram OAuth callback error:', {

@@ -5,6 +5,7 @@ import Signup from './pages/Signup'
 import ConnectInstagram from './pages/ConnectInstagram'
 import Dashboard from './pages/Dashboard'
 import FlowBuilder from './pages/FlowBuilder'
+import OAuthCallback from './components/OAuthCallback'
 import './App.css'
 
 function App() {
@@ -60,6 +61,14 @@ function App() {
           element={
             isAuthenticated ? 
             <ConnectInstagram user={user} onLogout={handleLogout} /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/oauth-callback" 
+          element={
+            isAuthenticated ? 
+            <OAuthCallback /> : 
             <Navigate to="/login" replace />
           } 
         />

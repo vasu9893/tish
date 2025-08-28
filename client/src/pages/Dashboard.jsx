@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
@@ -15,7 +15,9 @@ import {
   BarChart3,
   Plus,
   Search,
-  RefreshCw
+  RefreshCw,
+  CheckCircle,
+  X
 } from 'lucide-react'
 import Chats from './Chats'
 import FlowBuilder from './FlowBuilder'
@@ -28,12 +30,56 @@ const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('chats')
   const [instagramStatus, setInstagramStatus] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [successData, setSuccessData] = useState(null)
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     // Check Instagram connection status
     checkInstagramStatus()
-  }, [])
+    
+    // Check for Instagram OAuth success in URL parameters
+    const urlParams = new URLSearchParams(location.search)
+    const instagramSuccess = urlParams.get('instagram')
+    
+    if (instagramSuccess === 'success') {
+      const pageId = urlParams.get('pageId')
+      const pageName = urlParams.get('pageName')
+      const instagramAccountId = urlParams.get('instagramAccountId')
+      
+      if (pageId && pageName) {
+        console.log('Instagram OAuth success detected:', { pageId, pageName, instagramAccountId })
+        
+        setSuccessData({
+          pageId,
+          pageName: decodeURIComponent(pageName),
+          instagramAccountId
+        })
+        setShowSuccessMessage(true)
+        
+        // Update Instagram status to connected
+        setInstagramStatus(true)
+        
+        // Switch to Instagram tab to show the new connection
+        setActiveTab('instagram')
+        
+        // Refresh Instagram status from backend
+        setTimeout(() => {
+          checkInstagramStatus()
+        }, 1000)
+        
+        // Clear URL parameters
+        navigate(location.pathname, { replace: true })
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          setShowSuccessMessage(false)
+          setSuccessData(null)
+        }, 5000)
+      }
+    }
+  }, [location.search, navigate])
 
   const checkInstagramStatus = async () => {
     try {
@@ -67,6 +113,35 @@ const Dashboard = ({ user, onLogout }) => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
+        {/* Success Message */}
+        {showSuccessMessage && successData && (
+          <div className="bg-green-50 border-b border-green-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="text-sm font-medium text-green-800">
+                      Instagram Connected Successfully!
+                    </p>
+                    <p className="text-xs text-green-600">
+                      Connected to {successData.pageName} (ID: {successData.pageId})
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSuccessMessage(false)}
+                  className="text-green-600 hover:text-green-800 hover:bg-green-100"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
