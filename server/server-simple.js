@@ -25,16 +25,17 @@ app.get('/', (req, res) => {
   })
 })
 
-// Instagram status endpoint (simplified)
+// Instagram status endpoint (simplified - public for testing)
 app.get('/api/instagram/status', (req, res) => {
   res.json({
     success: true,
     connected: false,
-    message: 'Instagram not connected'
+    message: 'Instagram not connected (public test endpoint)',
+    timestamp: new Date().toISOString()
   })
 })
 
-// Instagram conversations endpoint (simplified)
+// Instagram conversations endpoint (simplified - public for testing)
 app.get('/api/instagram/conversations', (req, res) => {
   res.json({
     success: true,
@@ -43,7 +44,19 @@ app.get('/api/instagram/conversations', (req, res) => {
       total: 0,
       limit: 50,
       offset: 0
-    }
+    },
+    message: 'Public test endpoint - no conversations yet',
+    timestamp: new Date().toISOString()
+  })
+})
+
+// Instagram auth endpoint (public for testing)
+app.get('/api/instagram/auth/instagram', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Instagram auth endpoint (public test)',
+    authUrl: 'https://example.com/instagram-auth',
+    timestamp: new Date().toISOString()
   })
 })
 
