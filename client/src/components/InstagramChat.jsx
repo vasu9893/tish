@@ -7,7 +7,7 @@ import { Badge } from './ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { ScrollArea } from './ui/scroll-area'
 import { Separator } from './ui/separator'
-import { api } from '../utils/api'
+import api from '../utils/api'
 
 const InstagramChat = () => {
   const [conversations, setConversations] = useState([])

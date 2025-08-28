@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Badge } from './ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Button } from './ui/button'
-import { api } from '../utils/api'
+import api from '../utils/api'
 
 const InstagramAnalytics = () => {
   const [analytics, setAnalytics] = useState({
