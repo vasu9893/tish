@@ -28,7 +28,16 @@ const instagramUserSchema = new mongoose.Schema({
   },
   instagramAccessToken: {
     type: String,
-    required: false // For direct Instagram OAuth
+    required: false // For Instagram Basic Display API
+  },
+  instagramUsername: {
+    type: String,
+    required: false // Instagram username from Basic Display API
+  },
+  accountType: {
+    type: String,
+    required: false, // personal, business, creator
+    enum: ['personal', 'business', 'creator']
   },
   userAccessToken: {
     type: String,
@@ -47,7 +56,6 @@ const instagramUserSchema = new mongoose.Schema({
     default: Date.now
   },
   pageName: String,
-  instagramUsername: String,
   permissions: [String],
   webhookSubscribed: {
     type: Boolean,

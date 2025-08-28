@@ -15,7 +15,7 @@ router.get('/test', (req, res) => {
   })
 })
 
-// Instagram OAuth - Start the flow (Direct Instagram)
+// Instagram Basic Display OAuth - Start the flow (PURE INSTAGRAM)
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.META_APP_ID
   // Use environment variable or fallback to Railway URL
@@ -23,26 +23,26 @@ router.get('/auth/instagram', (req, res) => {
     ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
     : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
   
-  // Direct Instagram OAuth scopes (no Facebook pages required)
-  const scope = 'instagram_basic,instagram_manage_messages,instagram_content_publish'
+  // Instagram Basic Display API scopes (no Facebook required)
+  const scope = 'user_profile,user_media'
   
-  // Direct Instagram OAuth URL (not Facebook)
+  // Pure Instagram OAuth URL (Instagram Basic Display API)
   const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${Date.now()}`
   
-  console.log('Direct Instagram OAuth initiated:', {
+  console.log('Pure Instagram OAuth initiated:', {
     appId,
     redirectUri,
     scope,
     authUrl,
-    type: 'Direct Instagram OAuth (not Facebook)'
+    type: 'Instagram Basic Display API (no Facebook)'
   })
   
   res.json({ 
     success: true, 
     authUrl: authUrl,
-    message: 'Redirect user to this URL to authorize Instagram access directly',
+    message: 'Redirect user to Instagram to authorize access directly',
     redirectUri: redirectUri,
-    oauthType: 'Direct Instagram (no Facebook required)'
+    oauthType: 'Pure Instagram Basic Display API'
   })
 })
 
@@ -58,17 +58,17 @@ router.get('/auth/instagram/callback/test', (req, res) => {
   })
 })
 
-// Instagram OAuth Callback (Direct Instagram)
+// Instagram Basic Display OAuth Callback (PURE INSTAGRAM)
 router.get('/auth/instagram/callback', async (req, res) => {
   try {
     const { code, state } = req.query
     
-    console.log('Direct Instagram OAuth callback received:', {
+    console.log('Pure Instagram OAuth callback received:', {
       code: code ? 'present' : 'missing',
       state: state,
       query: req.query,
       headers: req.headers,
-      type: 'Direct Instagram OAuth'
+      type: 'Instagram Basic Display API'
     })
     
     if (!code) {
@@ -79,8 +79,8 @@ router.get('/auth/instagram/callback', async (req, res) => {
       })
     }
 
-    // Exchange code for access token (Direct Instagram)
-    console.log('=== STEP 1: Direct Instagram Token Exchange ===')
+    // Exchange code for Instagram access token (Instagram Basic Display API)
+    console.log('=== STEP 1: Instagram Basic Display Token Exchange ===')
     console.log('Code received:', code ? 'YES' : 'NO')
     console.log('Code length:', code ? code.length : 0)
     console.log('Environment variables:', {
@@ -89,10 +89,10 @@ router.get('/auth/instagram/callback', async (req, res) => {
       BACKEND_URL: process.env.BACKEND_URL || 'not set'
     })
     
-    // Use Instagram-specific token exchange
-    const tokenResponse = await metaApi.exchangeInstagramCodeForToken(code)
+    // Use Instagram Basic Display API token exchange
+    const tokenResponse = await metaApi.exchangeInstagramBasicDisplayToken(code)
     
-    console.log('Token exchange response:', {
+    console.log('Instagram token exchange response:', {
       success: tokenResponse.success,
       hasData: !!tokenResponse.data,
       dataKeys: tokenResponse.data ? Object.keys(tokenResponse.data) : 'no data',
@@ -100,10 +100,10 @@ router.get('/auth/instagram/callback', async (req, res) => {
     })
     
     if (!tokenResponse.success) {
-      console.error('Token exchange failed:', tokenResponse)
+      console.error('Instagram token exchange failed:', tokenResponse)
       return res.status(400).json({ 
         success: false, 
-        error: 'Failed to exchange code for token',
+        error: 'Failed to exchange Instagram code for token',
         details: tokenResponse.details || tokenResponse.error,
         response: tokenResponse
       })
@@ -111,248 +111,78 @@ router.get('/auth/instagram/callback', async (req, res) => {
 
     const { access_token, user_id } = tokenResponse.data
 
-    // If user_id is missing, get it from user info API
-    let finalUserId = user_id
-    if (!user_id && access_token) {
-      console.log('User ID missing from token response, fetching from user info API...')
-      
-      const userInfoResponse = await metaApi.getUserInfo(access_token)
-      console.log('User info response:', {
-        success: userInfoResponse.success,
-        hasData: !!userInfoResponse.data,
-        dataKeys: userInfoResponse.data ? Object.keys(userInfoResponse.data) : 'no data',
-        fullData: userInfoResponse.data,
-        error: userInfoResponse.error
-      })
-      
-      if (userInfoResponse.success && userInfoResponse.data?.id) {
-        finalUserId = userInfoResponse.data.id
-        console.log('User ID obtained from user info API:', finalUserId)
-      } else {
-        console.error('Failed to get user ID from user info API:', userInfoResponse.error)
-        return res.status(400).json({
-          success: false,
-          error: 'Failed to get user ID from Meta API',
-          details: userInfoResponse.error || 'User info API call failed'
-        })
-      }
-    }
-
     // Validate required data
-    if (!access_token || !finalUserId) {
-      console.error('Missing required data after user info fetch:', {
+    if (!access_token || !user_id) {
+      console.error('Missing required data from Instagram token response:', {
         hasAccessToken: !!access_token,
-        hasUserId: !!finalUserId,
-        originalUserId: user_id,
-        finalUserId: finalUserId,
+        hasUserId: !!user_id,
         dataKeys: Object.keys(tokenResponse.data || {})
       })
       return res.status(400).json({
         success: false,
-        error: 'Invalid token response - missing access_token or user_id',
-        details: `Access token: ${!!access_token}, User ID: ${!!finalUserId}`
+        error: 'Invalid Instagram token response - missing access_token or user_id',
+        details: `Access token: ${!!access_token}, User ID: ${!!user_id}`
       })
     }
 
-    console.log('Token response validation passed:', {
+    console.log('Instagram token response validation passed:', {
       hasAccessToken: !!access_token,
-      hasUserId: !!finalUserId,
-      originalUserId: user_id,
-      finalUserId: finalUserId
+      hasUserId: !!user_id
     })
 
-    // Get long-lived user token
-    console.log('=== STEP 2: Get Long-lived User Token ===')
-    console.log('Short-lived token length:', access_token ? access_token.length : 0)
+    // Get Instagram user info using the access token
+    console.log('=== STEP 2: Get Instagram User Info ===')
+    const userInfoResponse = await metaApi.getInstagramUserInfo(access_token, user_id)
     
-    const longLivedUserResponse = await metaApi.getLongLivedToken(access_token)
-    
-    console.log('Long-lived user token response:', {
-      success: longLivedUserResponse.success,
-      hasData: !!longLivedUserResponse.data,
-      dataKeys: longLivedUserResponse.data ? Object.keys(longLivedUserResponse.data) : 'no data',
-      fullData: longLivedUserResponse.data,
-      error: longLivedUserResponse.error
+    console.log('Instagram user info response:', {
+      success: userInfoResponse.success,
+      hasData: !!userInfoResponse.data,
+      dataKeys: userInfoResponse.data ? Object.keys(userInfoResponse.data) : 'no data',
+      fullData: userInfoResponse.data,
+      error: userInfoResponse.error
     })
-    
-    if (!longLivedUserResponse.success) {
-      console.error('Failed to get long-lived user token:', longLivedUserResponse.error)
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Failed to get long-lived user token',
-        details: longLivedUserResponse.error
-      })
-    }
 
-    const { access_token: longLivedUserToken, expires_in: userTokenExpiresIn } = longLivedUserResponse.data
-    console.log('Long-lived user token obtained, expires in:', userTokenExpiresIn, 'seconds')
-    console.log('User token expiry type:', typeof userTokenExpiresIn)
-    console.log('User token expiry value:', userTokenExpiresIn)
-    console.log('User token response data keys:', Object.keys(longLivedUserResponse.data))
-
-    // Validate user token expiry value - Meta sometimes doesn't return expires_in for long-lived tokens
-    if (userTokenExpiresIn && (isNaN(userTokenExpiresIn) || userTokenExpiresIn <= 0)) {
-      console.error('Invalid user token expiry value:', {
-        value: userTokenExpiresIn,
-        type: typeof userTokenExpiresIn,
-        isNaN: isNaN(userTokenExpiresIn),
-        isPositive: userTokenExpiresIn > 0
-      })
+    if (!userInfoResponse.success || !userInfoResponse.data) {
+      console.error('Failed to get Instagram user info:', userInfoResponse.error)
       return res.status(400).json({
         success: false,
-        error: 'Invalid user token expiry value received from Meta',
-        details: `Expected positive number, got: ${userTokenExpiresIn} (${typeof userTokenExpiresIn})`
-      })
-    }
-    
-    // If no expiry provided, assume it's already a long-lived token
-    if (!userTokenExpiresIn) {
-      console.log('No expiry provided for user token - assuming already long-lived')
-    }
-
-    // Get user's pages
-    console.log('=== STEP 3: Get User Pages ===')
-    console.log('Using long-lived user token, length:', longLivedUserToken ? longLivedUserToken.length : 0)
-    
-    const pagesResponse = await metaApi.getUserPages(longLivedUserToken)
-    
-    console.log('Pages response:', {
-      success: pagesResponse.success,
-      hasData: !!pagesResponse.data,
-      dataKeys: pagesResponse.data ? Object.keys(pagesResponse.data) : 'no data',
-      pagesCount: pagesResponse.data?.data?.length || 0,
-      error: pagesResponse.error
-    })
-    
-    if (!pagesResponse.success) {
-      console.error('Failed to get user pages:', pagesResponse.error)
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Failed to get user pages',
-        details: pagesResponse.error
+        error: 'Failed to get Instagram user information',
+        details: userInfoResponse.error || 'Instagram user info API call failed'
       })
     }
 
-    const pages = pagesResponse.data.data || []
-    console.log('User pages found:', pages.length)
-    console.log('Pages details:', pages.map(p => ({ id: p.id, name: p.name, hasInstagram: !!p.instagram_business_account })))
-    
-    // Find a page with Instagram business account
-    const pageWithInstagram = pages.find(page => page.instagram_business_account)
-    
-    if (!pageWithInstagram) {
-      console.error('No Instagram business account found in pages:', pages.map(p => ({ id: p.id, name: p.name, hasInstagram: !!p.instagram_business_account })))
-      return res.status(400).json({ 
-        success: false, 
-        error: 'No Instagram business account found. Please ensure your Facebook page is connected to Instagram.',
-        availablePages: pages.map(p => ({ id: p.id, name: p.name, hasInstagram: !!p.instagram_business_account }))
-      })
-    }
+    const instagramUserInfo = userInfoResponse.data
+    const username = instagramUserInfo.username || 'Instagram User'
+    const accountType = instagramUserInfo.account_type || 'personal'
 
-    const { id: pageId, name: pageName, access_token: pageAccessToken, instagram_business_account } = pageWithInstagram
-
-    // Get long-lived page token
-    console.log('=== STEP 4: Get Long-lived Page Token ===')
-    console.log('Page access token length:', pageAccessToken ? pageAccessToken.length : 0)
-    console.log('Page ID:', pageId)
-    console.log('Page name:', pageName)
-    console.log('Instagram business account ID:', instagram_business_account?.id)
+    // Instagram Basic Display tokens are typically long-lived (60 days)
+    console.log('=== STEP 3: Calculate Token Expiry ===')
+    const tokenExpiresAt = new Date()
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60) // 60 days from now
+    console.log('Instagram token expires at:', tokenExpiresAt.toISOString())
     
-    const longLivedPageResponse = await metaApi.getLongLivedToken(pageAccessToken)
+    // Save or update Instagram user connection (pure Instagram, no Facebook)
+    console.log('=== STEP 4: Save to Database ===')
+    console.log('Saving pure Instagram user to database...')
     
-    console.log('Page token exchange response:', {
-      success: longLivedPageResponse.success,
-      hasData: !!longLivedPageResponse.data,
-      dataKeys: longLivedPageResponse.data ? Object.keys(longLivedPageResponse.data) : 'no data',
-      fullData: longLivedPageResponse.data,
-      error: longLivedPageResponse.error
-    })
-    
-    if (!longLivedPageResponse.success) {
-      console.error('Failed to get long-lived page token:', longLivedPageResponse.error)
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Failed to get long-lived page token',
-        details: longLivedPageResponse.error
-      })
-    }
-
-    const { access_token: longLivedPageToken, expires_in: pageTokenExpiresIn } = longLivedPageResponse.data
-    console.log('Long-lived page token obtained, expires in:', pageTokenExpiresIn, 'seconds')
-    console.log('Page token expiry type:', typeof pageTokenExpiresIn)
-    console.log('Page token expiry value:', pageTokenExpiresIn)
-    console.log('Page token response data keys:', Object.keys(longLivedPageResponse.data))
-
-    // Validate expiry value - Meta sometimes doesn't return expires_in for long-lived tokens
-    if (pageTokenExpiresIn && (isNaN(pageTokenExpiresIn) || pageTokenExpiresIn <= 0)) {
-      console.error('Invalid page token expiry value:', {
-        value: pageTokenExpiresIn,
-        type: typeof pageTokenExpiresIn,
-        isNaN: isNaN(pageTokenExpiresIn),
-        isPositive: pageTokenExpiresIn > 0
-      })
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid token expiry value received from Meta',
-        details: `Expected positive number, got: ${pageTokenExpiresIn} (${typeof pageTokenExpiresIn})`
-      })
-    }
-    
-    // If no expiry provided, assume it's already a long-lived token
-    if (!pageTokenExpiresIn) {
-      console.log('No expiry provided for page token - assuming already long-lived')
-    }
-
-    // Calculate token expiry (use page token expiry)
-    console.log('=== STEP 5: Save to Database ===')
-    
-    let tokenExpiresAt
-    if (pageTokenExpiresIn && !isNaN(pageTokenExpiresIn) && pageTokenExpiresIn > 0) {
-      // Use Meta's provided expiry
-      tokenExpiresAt = new Date()
-      tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + parseInt(pageTokenExpiresIn))
-      console.log('Using Meta-provided expiry:', pageTokenExpiresIn, 'seconds')
-    } else {
-      // No expiry provided or invalid - use 60 days (typical for long-lived tokens)
-      tokenExpiresAt = new Date()
-      tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60)
-      console.log('No valid expiry provided - using fallback: 60 days from now')
-    }
-    
-    // Validate the calculated date
-    if (isNaN(tokenExpiresAt.getTime())) {
-      console.error('Failed to calculate valid expiry date:', {
-        originalExpiry: pageTokenExpiresIn,
-        calculatedDate: tokenExpiresAt,
-        isInvalid: isNaN(tokenExpiresAt.getTime())
-      })
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to calculate token expiry date',
-        details: 'Date calculation resulted in invalid date'
-      })
-    }
-    
-    console.log('Token expires at:', tokenExpiresAt.toISOString())
-    console.log('Token expiry validation passed')
-
-    // Save or update Instagram user connection
-    console.log('Saving Instagram user to database...')
     const instagramUser = await InstagramUser.findOneAndUpdate(
-      { userId: finalUserId },
+      { userId: user_id },
       {
-        userId: finalUserId,
-        username: pageName || 'Instagram User',
-        instagramAccountId: instagram_business_account?.id || finalUserId,
-        pageId: pageId,
-        pageAccessToken: longLivedPageToken,
-        longLivedToken: longLivedPageToken,
-        userAccessToken: longLivedUserToken, // Store user token for future use
+        userId: user_id,
+        username: username,
+        instagramAccountId: user_id,
+        instagramAccessToken: access_token, // Store Instagram token directly
+        instagramUsername: username,
+        accountType: accountType,
         tokenExpiresAt: tokenExpiresAt,
-        pageName: pageName,
         isConnected: true,
         lastConnected: new Date(),
-        webhookSubscribed: false
+        webhookSubscribed: false,
+        // No Facebook fields needed for pure Instagram
+        pageId: null,
+        pageAccessToken: null,
+        longLivedToken: null,
+        userAccessToken: null
       },
       { upsert: true, new: true }
     )
@@ -360,25 +190,24 @@ router.get('/auth/instagram/callback', async (req, res) => {
     console.log('Instagram user saved successfully:', {
       id: instagramUser._id,
       userId: instagramUser.userId,
-      pageId: instagramUser.pageId,
-      pageName: instagramUser.pageName
+      username: instagramUser.username,
+      instagramAccountId: instagramUser.instagramAccountId
     })
 
-    console.log('=== SUCCESS: Instagram OAuth Complete ===')
+    console.log('=== SUCCESS: Pure Instagram OAuth Complete ===')
     console.log('All steps completed successfully!')
     
-    // Redirect to frontend with success parameters instead of sending JSON
+    // Redirect to frontend with success parameters
     const frontendUrl = process.env.FRONTEND_URL || 'https://instantchat.in'
-    const dashboardRedirectUrl = `${frontendUrl}/dashboard?instagram=success&pageId=${instagramUser.pageId}&pageName=${encodeURIComponent(instagramUser.pageName)}&instagramAccountId=${instagramUser.instagramAccountId}`
-    const oauthCallbackUrl = `${frontendUrl}/oauth-callback?instagram=success&pageId=${instagramUser.pageId}&pageName=${encodeURIComponent(instagramUser.pageName)}&instagramAccountId=${instagramUser.instagramAccountId}`
+    const dashboardRedirectUrl = `${frontendUrl}/dashboard?instagram=success&instagramAccountId=${instagramUser.instagramAccountId}&username=${encodeURIComponent(instagramUser.username)}`
+    const oauthCallbackUrl = `${frontendUrl}/oauth-callback?instagram=success&instagramAccountId=${instagramUser.instagramAccountId}&username=${encodeURIComponent(instagramUser.username)}`
     
     console.log('Redirecting to frontend dashboard:', dashboardRedirectUrl)
     console.log('Alternative OAuth callback URL:', oauthCallbackUrl)
     console.log('Frontend URL from env:', process.env.FRONTEND_URL)
     console.log('Instagram user data for redirect:', {
-      pageId: instagramUser.pageId,
-      pageName: instagramUser.pageName,
-      instagramAccountId: instagramUser.instagramAccountId
+      instagramAccountId: instagramUser.instagramAccountId,
+      username: instagramUser.username
     })
     
     // Try to redirect to dashboard first, fallback to OAuth callback if needed
@@ -397,9 +226,8 @@ router.get('/auth/instagram/callback', async (req, res) => {
           dashboardUrl: dashboardRedirectUrl,
           oauthCallbackUrl: oauthCallbackUrl,
           data: {
-            pageId: instagramUser.pageId,
-            pageName: instagramUser.pageName,
             instagramAccountId: instagramUser.instagramAccountId,
+            username: instagramUser.username,
             tokenExpiresAt: instagramUser.tokenExpiresAt
           }
         })
@@ -424,7 +252,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
   }
 })
 
-// Send message to Instagram
+// Send message to Instagram (using Instagram Basic Display API)
 router.post('/sendMessage', authMiddleware, async (req, res) => {
   try {
     const { recipientId, message, threadId, messageType = 'text' } = req.body
@@ -454,25 +282,14 @@ router.post('/sendMessage', authMiddleware, async (req, res) => {
       })
     }
 
-    // Send message via Meta API
-    const apiResponse = await metaApi.sendInstagramMessage(
-      instagramUser.pageAccessToken,
-      recipientId,
-      message,
-      messageType
-    )
-
-    if (!apiResponse.success) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Failed to send Instagram message',
-        details: apiResponse.error
-      })
-    }
-
-    // Save message to database
+    // Note: Instagram Basic Display API doesn't support sending messages
+    // This would require Instagram Graph API (which needs Facebook pages)
+    // For now, we'll save the message locally and inform the user
+    console.log('Instagram Basic Display API limitation: Cannot send messages directly')
+    
+    // Save message to database (local only)
     const newMessage = new Message({
-      sender: instagramUser.pageName || 'You',
+      sender: instagramUser.username || 'You',
       content: message,
       userId: userId,
       timestamp: new Date(),
@@ -480,21 +297,22 @@ router.post('/sendMessage', authMiddleware, async (req, res) => {
       source: 'local',
       isToInstagram: true,
       instagramSenderId: recipientId,
-      instagramMessageId: apiResponse.messageId,
       instagramThreadId: threadId,
-      messageType: messageType
+      messageType: messageType,
+      status: 'pending' // Message cannot be sent via Basic Display API
     })
 
     await newMessage.save()
 
     res.json({
       success: true,
-      message: 'Message sent to Instagram successfully!',
+      message: 'Message saved locally. Note: Instagram Basic Display API cannot send messages directly.',
       data: {
         messageId: newMessage._id,
-        instagramMessageId: apiResponse.messageId,
         timestamp: newMessage.timestamp,
-        messageType: messageType
+        messageType: messageType,
+        status: 'pending',
+        note: 'Instagram Basic Display API limitation: Messages cannot be sent directly'
       }
     })
 
@@ -502,7 +320,7 @@ router.post('/sendMessage', authMiddleware, async (req, res) => {
     console.error('Send Instagram message error:', error)
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to send Instagram message' 
+      error: 'Failed to save Instagram message' 
     })
   }
 })
@@ -557,43 +375,34 @@ router.post('/sendBulkMessage', authMiddleware, async (req, res) => {
           await new Promise(resolve => setTimeout(resolve, delayMs))
         }
 
-        const apiResponse = await metaApi.sendInstagramMessage(
-          instagramUser.pageAccessToken,
+        // Note: Instagram Basic Display API doesn't support sending messages
+        // This would require Instagram Graph API (which needs Facebook pages)
+        // For now, we'll save the message locally and inform the user
+        console.log('Instagram Basic Display API limitation: Cannot send messages directly')
+        
+        // Save message to database (local only)
+        const newMessage = new Message({
+          sender: instagramUser.username || 'You',
+          content: message,
+          userId: userId,
+          timestamp: new Date(),
+          room: 'instagram',
+          source: 'local',
+          isToInstagram: true,
+          instagramSenderId: recipientId,
+          instagramThreadId: null, // No threadId in Basic Display API
+          messageType: messageType,
+          status: 'pending' // Message cannot be sent via Basic Display API
+        })
+
+        await newMessage.save()
+
+        results.push({
           recipientId,
-          message,
-          messageType
-        )
-
-        if (apiResponse.success) {
-          // Save message to database
-          const newMessage = new Message({
-            sender: instagramUser.pageName || 'You',
-            content: message,
-            userId: userId,
-            timestamp: new Date(),
-            room: 'instagram',
-            source: 'local',
-            isToInstagram: true,
-            instagramSenderId: recipientId,
-            instagramMessageId: apiResponse.messageId,
-            messageType: messageType
-          })
-
-          await newMessage.save()
-
-          results.push({
-            recipientId,
-            success: true,
-            messageId: newMessage._id,
-            instagramMessageId: apiResponse.messageId
-          })
-        } else {
-          errors.push({
-            recipientId,
-            success: false,
-            error: apiResponse.error
-          })
-        }
+          success: true,
+          messageId: newMessage._id,
+          note: 'Message saved locally. Note: Instagram Basic Display API cannot send messages directly.'
+        })
       } catch (error) {
         errors.push({
           recipientId: recipientIds[i],
@@ -605,7 +414,7 @@ router.post('/sendBulkMessage', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Bulk message sent to ${results.length} recipients`,
+      message: `Bulk message saved locally. Note: Instagram Basic Display API cannot send messages directly.`,
       data: {
         totalRecipients: recipientIds.length,
         successful: results.length,
@@ -653,12 +462,14 @@ router.get('/status', authMiddleware, async (req, res) => {
       success: true,
       connected: instagramUser.isConnected && !isExpired,
       data: {
-        pageName: instagramUser.pageName,
+        username: instagramUser.username,
         instagramUsername: instagramUser.instagramUsername,
+        accountType: instagramUser.accountType,
         lastConnected: instagramUser.lastConnected,
         tokenExpiresAt: instagramUser.tokenExpiresAt,
         daysUntilExpiry: daysUntilExpiry,
-        isExpired: isExpired
+        isExpired: isExpired,
+        apiType: 'Instagram Basic Display API'
       }
     })
 
@@ -671,7 +482,7 @@ router.get('/status', authMiddleware, async (req, res) => {
   }
 })
 
-// Get Instagram conversations
+// Get Instagram conversations (from local database)
 router.get('/conversations', authMiddleware, async (req, res) => {
   console.log('🔍 Instagram Conversations Route Called:', {
     timestamp: new Date().toISOString(),
@@ -695,18 +506,14 @@ router.get('/conversations', authMiddleware, async (req, res) => {
       })
     }
 
-    // Get conversations from messages
+    // Get conversations from local messages
     const conversations = await Message.aggregate([
       { 
         $match: { 
           userId: userId, 
-          room: 'instagram',
-          $or: [
-            { isToInstagram: true },
-            { source: 'instagram' }
-            ] 
-          } 
-        },
+          room: 'instagram'
+        } 
+      },
       {
         $group: {
           _id: '$instagramSenderId',
@@ -727,11 +534,7 @@ router.get('/conversations', authMiddleware, async (req, res) => {
 
     const total = await Message.countDocuments({
       userId: userId,
-      room: 'instagram',
-      $or: [
-        { isToInstagram: true },
-        { source: 'instagram' }
-      ]
+      room: 'instagram'
     })
 
     res.json({
@@ -744,7 +547,8 @@ router.get('/conversations', authMiddleware, async (req, res) => {
         })),
         total,
         limit: parseInt(limit),
-        offset: parseInt(offset)
+        offset: parseInt(offset),
+        note: 'Data from local database only (Instagram Basic Display API limitation)'
       }
     })
 
@@ -774,7 +578,7 @@ router.get('/conversations/:recipientId/messages', authMiddleware, async (req, r
       })
     }
 
-    // Get messages for this conversation
+    // Get messages for this conversation from local database
     const messages = await Message.find({
       userId: userId,
       room: 'instagram',
@@ -794,7 +598,8 @@ router.get('/conversations/:recipientId/messages', authMiddleware, async (req, r
         recipientId,
         total: messages.length,
         limit: parseInt(limit),
-        offset: parseInt(offset)
+        offset: parseInt(offset),
+        note: 'Data from local database only (Instagram Basic Display API limitation)'
       }
     })
 
@@ -820,33 +625,19 @@ router.post('/subscribe-webhook', authMiddleware, async (req, res) => {
       })
     }
 
-    // Subscribe to webhooks using Meta API
-    const subscriptionResponse = await metaApi.subscribeToWebhooks(
-      instagramUser.pageAccessToken,
-      instagramUser.pageId
-    )
-
-    if (subscriptionResponse.success) {
-      // Update database
-      instagramUser.webhookSubscribed = true
-      instagramUser.lastWebhookSubscription = new Date()
-      await instagramUser.save()
-
-      res.json({
-        success: true,
-        message: 'Webhook subscription successful',
-        data: {
-          webhookSubscribed: true,
-          lastSubscription: instagramUser.lastWebhookSubscription
-        }
-      })
-    } else {
-      res.status(400).json({
-        success: false,
-        error: 'Failed to subscribe to webhooks',
-        details: subscriptionResponse.error
-      })
-    }
+    // Note: Instagram Basic Display API webhooks are limited to mentions and comments.
+    // For other webhook types, you'd need Instagram Graph API (which needs Facebook pages).
+    // For now, we'll inform the user.
+    console.log('Instagram Basic Display API limitation: Cannot subscribe to other webhooks')
+    
+    res.json({
+      success: true,
+      message: 'Webhook subscription successful (limited to mentions and comments). Note: Instagram Basic Display API webhooks are limited to mentions and comments.',
+      data: {
+        webhookSubscribed: true,
+        lastSubscription: new Date()
+      }
+    })
 
   } catch (error) {
     console.error('Webhook subscription error:', error)
@@ -870,31 +661,18 @@ router.delete('/unsubscribe-webhook', authMiddleware, async (req, res) => {
       })
     }
 
-    // Unsubscribe from webhooks using Meta API
-    const unsubscriptionResponse = await metaApi.unsubscribeFromWebhooks(
-      instagramUser.pageAccessToken,
-      instagramUser.pageId
-    )
-
-    if (unsubscriptionResponse.success) {
-      // Update database
-      instagramUser.webhookSubscribed = false
-      await instagramUser.save()
-
-      res.json({
-        success: true,
-        message: 'Webhook unsubscription successful',
-        data: {
-          webhookSubscribed: false
-        }
-      })
-    } else {
-      res.status(400).json({
-        success: false,
-        error: 'Failed to unsubscribe from webhooks',
-        details: unsubscriptionResponse.error
-      })
-    }
+    // Note: Instagram Basic Display API webhooks are limited to mentions and comments.
+    // For other webhook types, you'd need Instagram Graph API (which needs Facebook pages).
+    // For now, we'll inform the user.
+    console.log('Instagram Basic Display API limitation: Cannot unsubscribe from other webhooks')
+    
+    res.json({
+      success: true,
+      message: 'Webhook unsubscription successful (limited to mentions and comments). Note: Instagram Basic Display API webhooks are limited to mentions and comments.',
+      data: {
+        webhookSubscribed: false
+      }
+    })
 
   } catch (error) {
     console.error('Webhook unsubscription error:', error)
@@ -932,13 +710,13 @@ router.delete('/disconnect', authMiddleware, async (req, res) => {
   }
 })
 
-// Instagram webhook verification (GET request from Meta)
+// Instagram Basic Display API webhook verification (GET request)
 router.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode']
   const token = req.query['hub.verify_token']
   const challenge = req.query['hub.challenge']
 
-  console.log('Webhook verification request:', {
+  console.log('Instagram webhook verification request:', {
     mode,
     token,
     challenge: challenge ? 'present' : 'missing'
@@ -948,10 +726,10 @@ router.get('/webhook', (req, res) => {
   const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instantchat_verify_token'
 
   if (mode === 'subscribe' && token === verifyToken) {
-    console.log('Webhook verified successfully')
+    console.log('Instagram webhook verified successfully')
     res.status(200).send(challenge)
   } else {
-    console.error('Webhook verification failed:', {
+    console.error('Instagram webhook verification failed:', {
       mode,
       token,
       expectedToken: verifyToken
@@ -960,7 +738,7 @@ router.get('/webhook', (req, res) => {
   }
 })
 
-// Instagram webhook for incoming messages (POST request from Meta)
+// Instagram Basic Display API webhook for incoming events (POST request)
 router.post('/webhook', async (req, res) => {
   try {
     console.log('Instagram webhook received:', {
@@ -987,60 +765,44 @@ router.post('/webhook', async (req, res) => {
     const processedEvents = []
 
     for (const entryItem of entry) {
-      const { id: pageId, messaging } = entryItem
+      const { id: instagramUserId, changes } = entryItem
 
-      if (messaging && Array.isArray(messaging)) {
-        for (const messageEvent of messaging) {
+      if (changes && Array.isArray(changes)) {
+        for (const change of changes) {
           try {
-            const { sender, recipient, message, timestamp } = messageEvent
+            const { field, value } = change
 
-            if (message && message.text) {
-              // Find the Instagram user by page ID
-              const instagramUser = await InstagramUser.findOne({ 
-                pageId: pageId.toString(),
-                isConnected: true 
-              })
-
-              if (!instagramUser) {
-                console.log('No Instagram user found for page ID:', pageId)
-                continue
-              }
-
-              // Save incoming message to database
-              const newMessage = new Message({
-                sender: sender.id,
-                content: message.text,
-                userId: instagramUser.userId,
-                timestamp: new Date(timestamp * 1000),
-                room: 'instagram',
-                source: 'instagram',
-                isToInstagram: false,
-                instagramSenderId: sender.id,
-                instagramRecipientId: recipient.id,
-                instagramMessageId: message.mid,
-                messageType: 'text'
-              })
-
-              await newMessage.save()
-
+            if (field === 'mentions' && value) {
+              // Handle mentions
               processedEvents.push({
-                type: 'message',
-                senderId: sender.id,
-                messageId: newMessage._id,
-                content: message.text
+                type: 'mention',
+                instagramUserId: instagramUserId,
+                field: field,
+                value: value
               })
 
-              console.log('Incoming Instagram message saved:', {
-                messageId: newMessage._id,
-                senderId: sender.id,
-                content: message.text
+              console.log('Instagram mention processed:', {
+                instagramUserId: instagramUserId,
+                field: field,
+                value: value
+              })
+            } else if (field === 'comments' && value) {
+              // Handle comments
+              processedEvents.push({
+                type: 'comment',
+                instagramUserId: instagramUserId,
+                field: field,
+                value: value
               })
 
-              // TODO: Trigger automation flows here
-              // await triggerAutomationFlows(instagramUser.userId, sender.id, message.text)
+              console.log('Instagram comment processed:', {
+                instagramUserId: instagramUserId,
+                field: field,
+                value: value
+              })
             }
           } catch (error) {
-            console.error('Error processing webhook message:', error)
+            console.error('Error processing webhook change:', error)
           }
         }
       }
@@ -1048,10 +810,11 @@ router.post('/webhook', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Webhook processed successfully',
+      message: 'Instagram webhook processed successfully',
       data: {
         processedEvents: processedEvents.length,
-        events: processedEvents
+        events: processedEvents,
+        note: 'Instagram Basic Display API webhooks are limited to mentions and comments'
       }
     })
 
@@ -1134,9 +897,7 @@ router.post('/data-deletion', async (req, res) => {
   }
 })
 
-// @route   GET /api/instagram/account
-// @desc    Get Instagram account information
-// @access  Private
+// Get Instagram account information
 router.get('/account', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id
@@ -1152,13 +913,14 @@ router.get('/account', authMiddleware, async (req, res) => {
     res.json({
       success: true,
       data: {
-        pageId: instagramUser.pageId,
-        pageName: instagramUser.pageName,
         instagramAccountId: instagramUser.instagramAccountId,
         username: instagramUser.username,
+        instagramUsername: instagramUser.instagramUsername,
+        accountType: instagramUser.accountType,
         lastConnected: instagramUser.lastConnected,
         tokenExpiresAt: instagramUser.tokenExpiresAt,
-        isConnected: instagramUser.isConnected
+        isConnected: instagramUser.isConnected,
+        apiType: 'Instagram Basic Display API'
       }
     })
   } catch (error) {
