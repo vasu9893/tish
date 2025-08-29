@@ -175,17 +175,73 @@ const Chats = ({ user }) => {
     loadChatMessages(conversation.id)
   }
 
+  const createTestConversations = async () => {
+    console.log('🧪 Creating Test Conversations...', {
+      timestamp: new Date().toISOString()
+    })
+    
+    try {
+      setIsRefreshing(true)
+      const response = await api.post('/api/instagram/debug/create-test-conversations')
+      
+      console.log('✅ Test Conversations Created:', {
+        success: response.data.success,
+        count: response.data.count,
+        conversations: response.data.conversations
+      })
+      
+      if (response.data.success) {
+        // Reload conversations to show the new test data
+        await loadInstagramConversations()
+        alert(`✅ Created ${response.data.count} test conversations! Refresh to see them.`)
+      }
+    } catch (error) {
+      console.error('❌ Error Creating Test Conversations:', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        timestamp: new Date().toISOString()
+      })
+      alert('❌ Failed to create test conversations. Check console for details.')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
       {/* Conversations List */}
       <div className="lg:col-span-1">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Instagram className="w-5 h-5 text-pink-600" />
-              <span>Instagram DMs</span>
-            </CardTitle>
-                         <CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center space-x-2">
+                <Instagram className="w-5 h-5 text-pink-600" />
+                <span>Instagram DMs</span>
+              </CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadInstagramConversations}
+                  disabled={isRefreshing}
+                  className="h-8"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={createTestConversations}
+                  disabled={isRefreshing}
+                  className="h-8 text-xs"
+                  title="Create test conversations for demo"
+                >
+                  🧪 Test
+                </Button>
+              </div>
+            </div>
+            <CardDescription>
                {isRefreshing ? (
                  <div className="flex items-center space-x-2">
                    <div className="w-4 h-4 border-2 border-pink-600 border-t-transparent rounded-full animate-spin"></div>
