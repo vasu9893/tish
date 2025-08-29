@@ -712,9 +712,17 @@ router.get('/conversations', authMiddleware, async (req, res) => {
       success: true,
       data: {
         conversations: conversations.map(conv => ({
-          recipientId: conv._id,
-          lastMessage: conv.lastMessage,
-          messageCount: conv.messageCount
+          id: conv._id,                    // Frontend expects 'id'
+          recipientId: conv._id,           // Keep for backward compatibility
+          fullName: conv.lastMessage?.sender || `User ${conv._id.slice(-6)}`, // Extract from sender
+          avatar: null,                    // No avatar data available
+          timestamp: conv.lastMessage?.timestamp ? 
+            new Date(conv.lastMessage.timestamp).toLocaleString() : 'Unknown',
+          lastMessage: conv.lastMessage?.content || 'No messages',  // Extract content
+          messageCount: conv.messageCount,
+          unreadCount: 0,                  // Default to 0 (no unread tracking yet)
+          // Additional data for debugging
+          _lastMessageObj: conv.lastMessage
         })),
         total,
         limit: parseInt(limit),

@@ -62,7 +62,26 @@ const InstagramChat = () => {
       })
       
       if (response.data.success) {
-        setConversations(response.data.data.conversations)
+        const conversations = response.data.data.conversations || []
+        
+        // Validate conversation data structure
+        const validatedConversations = conversations.map(conv => ({
+          id: conv.id || conv.recipientId || 'unknown',
+          recipientId: conv.recipientId || conv.id || 'unknown',
+          fullName: conv.fullName || conv.sender || `User ${(conv.id || 'unknown').slice(-6)}`,
+          avatar: conv.avatar || null,
+          timestamp: conv.timestamp || 'Unknown',
+          lastMessage: typeof conv.lastMessage === 'string' ? conv.lastMessage : 
+                      (conv.lastMessage?.content || 'No messages'),
+          messageCount: conv.messageCount || 0,
+          unreadCount: conv.unreadCount || 0
+        }))
+        
+        console.log('📝 Validated Conversations:', validatedConversations)
+        setConversations(validatedConversations)
+      } else {
+        console.warn('❌ Backend returned success: false')
+        setConversations([])
       }
     } catch (error) {
       console.error('Error loading Instagram conversations:', error)

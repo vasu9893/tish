@@ -3,13 +3,18 @@ import axios from 'axios'
 // Debug logging for API configuration
 const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL
-  const fallbackUrl = 'https://tish-production.up.railway.app'
+  const isDevelopment = import.meta.env.DEV
+  
+  // In development, use empty string to let Vite proxy handle API calls
+  // In production, use the direct backend URL
+  const fallbackUrl = isDevelopment ? '' : 'https://tish-production.up.railway.app'
   const finalUrl = envUrl || fallbackUrl
   
   console.log('🔧 API Configuration Debug:', {
     'VITE_API_URL from env': envUrl,
+    'Is Development': isDevelopment,
     'Fallback URL': fallbackUrl,
-    'Final API URL': finalUrl,
+    'Final API URL': finalUrl || '(using proxy)',
     'Environment': import.meta.env.MODE,
     'Is Development': import.meta.env.DEV,
     'Is Production': import.meta.env.PROD

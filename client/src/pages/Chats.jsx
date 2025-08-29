@@ -23,7 +23,7 @@ const Chats = ({ user }) => {
     try {
       setIsRefreshing(true)
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/messages/instagram', {
+      const response = await fetch('/api/instagram/conversations', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -32,8 +32,21 @@ const Chats = ({ user }) => {
       
       if (response.ok) {
         const data = await response.json()
-        if (data.success && data.conversations) {
-          setConversations(data.conversations)
+        if (data.success && data.data && data.data.conversations) {
+          // Validate conversation data structure (same as InstagramChat)
+          const conversations = data.data.conversations || []
+          const validatedConversations = conversations.map(conv => ({
+            id: conv.id || conv.recipientId || 'unknown',
+            recipientId: conv.recipientId || conv.id || 'unknown',
+            fullName: conv.fullName || conv.sender || `User ${(conv.id || 'unknown').slice(-6)}`,
+            avatar: conv.avatar || null,
+            timestamp: conv.timestamp || 'Unknown',
+            lastMessage: typeof conv.lastMessage === 'string' ? conv.lastMessage : 
+                        (conv.lastMessage?.content || 'No messages'),
+            messageCount: conv.messageCount || 0,
+            unreadCount: conv.unreadCount || 0
+          }))
+          setConversations(validatedConversations)
         } else {
           // If no conversations, show empty state
           setConversations([])
@@ -166,7 +179,7 @@ const Chats = ({ user }) => {
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={conversation.avatar} />
-                    <AvatarFallback>{conversation.fullName.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>{(conversation.fullName || 'U').charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
