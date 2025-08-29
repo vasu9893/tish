@@ -4,6 +4,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { MessageCircle, Send, Instagram, Clock, User, Bot, RefreshCw } from 'lucide-react'
+import api from '../utils/api'
 
 const Chats = ({ user }) => {
   const [conversations, setConversations] = useState([])
@@ -20,43 +21,60 @@ const Chats = ({ user }) => {
   }, [])
 
   const loadInstagramConversations = async () => {
+    console.log('📚 Loading Instagram Conversations (Chats.jsx)...', {
+      timestamp: new Date().toISOString(),
+      currentConversations: conversations.length,
+      hasToken: !!localStorage.getItem('token')
+    })
+    
     try {
       setIsRefreshing(true)
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/instagram/conversations', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await api.get('/api/instagram/conversations')
+      
+      console.log('✅ Conversations Loaded Successfully (Chats.jsx):', {
+        success: response.data.success,
+        totalConversations: response.data.data?.conversations?.length || 0,
+        conversations: response.data.data?.conversations || [],
+        pagination: {
+          total: response.data.data?.total,
+          limit: response.data.data?.limit,
+          offset: response.data.data?.offset
         }
       })
       
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success && data.data && data.data.conversations) {
-          // Validate conversation data structure (same as InstagramChat)
-          const conversations = data.data.conversations || []
-          const validatedConversations = conversations.map(conv => ({
-            id: conv.id || conv.recipientId || 'unknown',
-            recipientId: conv.recipientId || conv.id || 'unknown',
-            fullName: conv.fullName || conv.sender || `User ${(conv.id || 'unknown').slice(-6)}`,
-            avatar: conv.avatar || null,
-            timestamp: conv.timestamp || 'Unknown',
-            lastMessage: typeof conv.lastMessage === 'string' ? conv.lastMessage : 
-                        (conv.lastMessage?.content || 'No messages'),
-            messageCount: conv.messageCount || 0,
-            unreadCount: conv.unreadCount || 0
-          }))
-          setConversations(validatedConversations)
-        } else {
-          // If no conversations, show empty state
-          setConversations([])
-        }
+      if (response.data.success && response.data.data && response.data.data.conversations) {
+        // Validate conversation data structure (same as InstagramChat)
+        const conversations = response.data.data.conversations || []
+        const validatedConversations = conversations.map(conv => ({
+          id: conv.id || conv.recipientId || 'unknown',
+          recipientId: conv.recipientId || conv.id || 'unknown',
+          fullName: conv.fullName || conv.sender || `User ${(conv.id || 'unknown').slice(-6)}`,
+          avatar: conv.avatar || null,
+          timestamp: conv.timestamp || 'Unknown',
+          lastMessage: typeof conv.lastMessage === 'string' ? conv.lastMessage : 
+                      (conv.lastMessage?.content || 'No messages'),
+          messageCount: conv.messageCount || 0,
+          unreadCount: conv.unreadCount || 0
+        }))
+        
+        console.log('📝 Validated Conversations (Chats.jsx):', validatedConversations)
+        setConversations(validatedConversations)
       } else {
-        console.error('Failed to load Instagram conversations:', response.status)
+        console.warn('❌ Backend returned success: false (Chats.jsx)')
         setConversations([])
       }
     } catch (error) {
-      console.error('Error loading Instagram conversations:', error)
+      console.error('❌ Error Loading Instagram Conversations (Chats.jsx):', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        isAuthError: error.response?.status === 401,
+        isNotFoundError: error.response?.status === 404,
+        timestamp: new Date().toISOString(),
+        // Check if we got HTML instead of JSON
+        isHtmlResponse: error.message.includes('<!DOCTYPE') || error.message.includes('Unexpected token'),
+        fullError: error
+      })
       setConversations([])
     } finally {
       setIsRefreshing(false)
@@ -64,29 +82,43 @@ const Chats = ({ user }) => {
   }
 
   const loadChatMessages = async (conversationId) => {
+    console.log('💬 Loading Messages for Conversation (Chats.jsx):', {
+      timestamp: new Date().toISOString(),
+      conversationId,
+      currentMessages: messages.length,
+      hasToken: !!localStorage.getItem('token')
+    })
+    
     try {
       setIsLoadingMessages(true)
-      const token = localStorage.getItem('token')
-      const response = await fetch(`/api/messages/instagram/${conversationId}`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await api.get(`/api/instagram/conversations/${conversationId}/messages`)
+      
+      console.log('✅ Messages Loaded Successfully (Chats.jsx):', {
+        success: response.data.success,
+        conversationId: response.data.data?.recipientId,
+        totalMessages: response.data.data?.messages?.length || 0,
+        messages: response.data.data?.messages || []
       })
       
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success && data.messages) {
-          setMessages(data.messages)
-        } else {
-          setMessages([])
-        }
+      if (response.data.success && response.data.data && response.data.data.messages) {
+        setMessages(response.data.data.messages)
       } else {
-        console.error('Failed to load chat messages:', response.status)
+        console.warn('❌ Backend returned success: false for messages (Chats.jsx)')
         setMessages([])
       }
     } catch (error) {
-      console.error('Error loading chat messages:', error)
+      console.error('❌ Error Loading Messages (Chats.jsx):', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        conversationId,
+        isAuthError: error.response?.status === 401,
+        isNotFoundError: error.response?.status === 404,
+        timestamp: new Date().toISOString(),
+        // Check if we got HTML instead of JSON
+        isHtmlResponse: error.message.includes('<!DOCTYPE') || error.message.includes('Unexpected token'),
+        fullError: error
+      })
       setMessages([])
     } finally {
       setIsLoadingMessages(false)
