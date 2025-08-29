@@ -68,6 +68,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', require('./routes/auth'))
+app.use('/auth/instagram', require('./routes/auth.instagram')) // Instagram-first auth routes
 app.use('/api/user', require('./routes/user'))
 app.use('/api/messages', require('./routes/messages'))
 app.use('/api/instagram', require('./routes/instagram'))
