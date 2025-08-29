@@ -723,7 +723,7 @@ router.get('/webhook', (req, res) => {
   })
 
   // Verify token should match your app's verify token
-  const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instantchat_verify_token'
+  const verifyToken = process.env.META_VERIFY_TOKEN || 'instantchat_verify_token'
 
   if (mode === 'subscribe' && token === verifyToken) {
     console.log('Instagram webhook verified successfully')

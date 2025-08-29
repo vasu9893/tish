@@ -50,6 +50,8 @@ META_VERIFY_TOKEN=your_webhook_verify_token_here
 3. Set verify token (use same value as `META_VERIFY_TOKEN`)
 4. Subscribe to webhook events: `mentions`, `comments`
 
+**Important**: The webhook endpoint must be publicly accessible and use HTTPS in production.
+
 ### Step 4: Test Integration
 1. Start your server: `npm run dev`
 2. Navigate to Instagram connection page
