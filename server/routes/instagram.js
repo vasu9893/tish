@@ -44,6 +44,51 @@ router.get('/debug/connections', async (req, res) => {
   }
 })
 
+// Fix endpoint to update Instagram connection user ID
+router.post('/debug/fix-user-id', async (req, res) => {
+  try {
+    const { instagramAccountId, newUserId } = req.body
+    
+    if (!instagramAccountId || !newUserId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Both instagramAccountId and newUserId are required'
+      })
+    }
+    
+    const result = await InstagramUser.findOneAndUpdate(
+      { instagramAccountId: instagramAccountId },
+      { userId: newUserId },
+      { new: true }
+    )
+    
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        error: 'Instagram connection not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      message: 'User ID updated successfully',
+      connection: {
+        id: result._id,
+        oldUserId: 'previous value',
+        newUserId: result.userId,
+        username: result.username,
+        instagramAccountId: result.instagramAccountId
+      }
+    })
+  } catch (error) {
+    console.error('Error fixing user ID:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fix user ID'
+    })
+  }
+})
+
 // Instagram Business Login OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID
