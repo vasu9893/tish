@@ -770,10 +770,25 @@ router.get('/conversations/:recipientId/messages', authMiddleware, async (req, r
     .skip(parseInt(offset))
     .limit(parseInt(limit))
 
+    // Transform messages to match frontend expectations
+    const transformedMessages = messages.reverse().map(msg => ({
+      id: msg._id.toString(),
+      content: msg.content,
+      sender: msg.sender,
+      timestamp: msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown',
+      isFromUser: msg.isToInstagram || false,
+      isFromInstagram: msg.isFromInstagram || false,
+      isInstagram: true,
+      messageType: msg.messageType || 'text',
+      instagramSenderId: msg.instagramSenderId,
+      instagramMessageId: msg.instagramMessageId,
+      source: msg.source || 'instagram'
+    }))
+
     res.json({
       success: true,
       data: {
-        messages: messages.reverse(), // Show oldest first
+        messages: transformedMessages,
         recipientId,
         total: messages.length,
         limit: parseInt(limit),
