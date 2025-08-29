@@ -57,6 +57,23 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
+    // Check if the error is due to HTML response instead of JSON
+    if (error.message.includes('Unexpected token') && error.message.includes('DOCTYPE')) {
+      console.error('❌ API returned HTML instead of JSON - likely a 404 or server error:', {
+        url: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+        baseURL: error.config?.baseURL,
+        fullURL: `${error.config?.baseURL}${error.config?.url}`,
+        message: error.message,
+        possibleCauses: [
+          'Backend server is not running',
+          'API endpoint does not exist (404)',
+          'CORS preflight failure',
+          'Proxy configuration issue'
+        ]
+      })
+    }
+    
     console.error('❌ API Response Error:', {
       message: error.message,
       status: error.response?.status,
@@ -66,7 +83,8 @@ api.interceptors.response.use(
       headers: error.response?.headers,
       isNetworkError: !error.response,
       isAuthError: error.response?.status === 401,
-      isNotFoundError: error.response?.status === 404
+      isNotFoundError: error.response?.status === 404,
+      fullURL: `${error.config?.baseURL}${error.config?.url}`
     })
     return Promise.reject(error)
   }

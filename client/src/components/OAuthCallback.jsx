@@ -16,21 +16,21 @@ const OAuthCallback = () => {
     const instagramSuccess = urlParams.get('instagram')
     
     if (instagramSuccess === 'success') {
-      const pageId = urlParams.get('pageId')
-      const pageName = urlParams.get('pageName')
-      const instagramAccountId = urlParams.get('instagramAccountId')
+      const username = urlParams.get('username')
+      const userId = urlParams.get('userId')
+      const permissions = urlParams.get('permissions')
       
-      if (pageId && pageName) {
+      if (username && userId) {
         setCallbackData({
-          pageId,
-          pageName: decodeURIComponent(pageName),
-          instagramAccountId
+          username: decodeURIComponent(username),
+          userId: userId,
+          permissions: permissions ? decodeURIComponent(permissions).split(',') : []
         })
         setIsLoading(false)
         
         // Auto-redirect to dashboard after 3 seconds
         setTimeout(() => {
-          navigate('/dashboard?instagram=success&pageId=' + pageId + '&pageName=' + encodeURIComponent(pageName) + '&instagramAccountId=' + instagramAccountId, { replace: true })
+          navigate('/dashboard?instagram=success&username=' + encodeURIComponent(username) + '&userId=' + userId + '&permissions=' + encodeURIComponent(permissions || ''), { replace: true })
         }, 3000)
       }
     } else {
@@ -41,7 +41,7 @@ const OAuthCallback = () => {
 
   const handleGoToDashboard = () => {
     if (callbackData) {
-      navigate('/dashboard?instagram=success&pageId=' + callbackData.pageId + '&pageName=' + encodeURIComponent(callbackData.pageName) + '&instagramAccountId=' + callbackData.instagramAccountId, { replace: true })
+      navigate('/dashboard?instagram=success&username=' + encodeURIComponent(callbackData.username) + '&userId=' + callbackData.userId + '&permissions=' + encodeURIComponent(callbackData.permissions.join(',') || ''), { replace: true })
     } else {
       navigate('/dashboard', { replace: true })
     }
@@ -94,11 +94,16 @@ const OAuthCallback = () => {
           <div className="space-y-3 mb-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-sm text-green-800">
-                <span className="font-medium">Page:</span> {callbackData.pageName}
+                <span className="font-medium">Instagram Account:</span> @{callbackData.username}
               </p>
               <p className="text-xs text-green-600">
-                ID: {callbackData.pageId}
+                User ID: {callbackData.userId}
               </p>
+              {callbackData.permissions && callbackData.permissions.length > 0 && (
+                <p className="text-xs text-green-600">
+                  Permissions: {callbackData.permissions.join(', ')}
+                </p>
+              )}
             </div>
             <p className="text-sm text-gray-600">
               Your Instagram business account has been successfully connected to InstantChat!

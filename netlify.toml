@@ -8,7 +8,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://backend-one-theta-43.vercel.app/api/:splat"
+  to = "https://tish-production.up.railway.app/api/:splat"
   status = 200
 
 [[redirects]]

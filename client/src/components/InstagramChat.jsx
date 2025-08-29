@@ -65,6 +65,22 @@ const InstagramChat = () => {
         setConversations(response.data.data.conversations)
       }
     } catch (error) {
+      console.error('Error loading Instagram conversations:', error)
+      
+      // Handle HTML response error specifically
+      if (error.message.includes('Unexpected token') && error.message.includes('DOCTYPE')) {
+        console.error('❌ Backend returned HTML instead of JSON. Possible issues:', {
+          endpoint: '/api/instagram/conversations',
+          possibleCauses: [
+            'Backend server is not running',
+            'API endpoint does not exist',
+            'CORS or proxy configuration issue',
+            'Authentication middleware blocking request'
+          ],
+          suggestion: 'Check if backend server is running and accessible'
+        })
+      }
+      
       console.error('❌ Error Loading Conversations:', {
         error: error.message,
         status: error.response?.status,

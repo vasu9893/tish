@@ -11,8 +11,9 @@
 - **Account Management**: Profile updates, avatar changes, and account deletion
 
 ### 📱 **Instagram Integration**
-- **OAuth 2.0 Connection**: Secure Instagram account linking via Meta API
+- **Instagram Business Login**: Direct Instagram authentication using Instagram Business Login API
 - **Real-time Messaging**: Send and receive Instagram Direct Messages
+- **Advanced Permissions**: Manage messages, comments, and publish content
 - **Webhook Support**: Receive instant notifications for incoming messages
 - **Account Management**: View Instagram account details and manage connections
 
@@ -69,7 +70,7 @@ server/
 ### **Prerequisites**
 - Node.js 16+ and npm
 - MongoDB Atlas account
-- Meta Developer account for Instagram integration
+- Meta Developer account with Instagram Business Login setup
 
 ### **1. Clone and Setup**
 ```bash
@@ -90,8 +91,8 @@ cp env.example .env
 # Fill in your configuration
 MONGO_URI=your_mongodb_atlas_connection_string
 JWT_SECRET=your_jwt_secret_key
-META_APP_ID=your_meta_app_id
-META_APP_SECRET=your_meta_app_secret
+INSTAGRAM_APP_ID=your_instagram_app_id
+INSTAGRAM_APP_SECRET=your_instagram_app_secret
 META_VERIFY_TOKEN=your_webhook_verify_token
 ```
 

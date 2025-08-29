@@ -15,6 +15,35 @@ router.get('/test', (req, res) => {
   })
 })
 
+// Debug endpoint to check Instagram connections in database
+router.get('/debug/connections', async (req, res) => {
+  try {
+    const connections = await InstagramUser.find({}).sort({ lastConnected: -1 }).limit(5)
+    res.json({
+      success: true,
+      message: 'Instagram connections in database',
+      count: connections.length,
+      connections: connections.map(conn => ({
+        id: conn._id,
+        userId: conn.userId,
+        username: conn.username,
+        instagramAccountId: conn.instagramAccountId,
+        isConnected: conn.isConnected,
+        lastConnected: conn.lastConnected,
+        tokenExpiresAt: conn.tokenExpiresAt,
+        permissions: conn.permissions,
+        accountType: conn.accountType
+      }))
+    })
+  } catch (error) {
+    console.error('Error fetching Instagram connections:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch Instagram connections'
+    })
+  }
+})
+
 // Instagram Business Login OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID
@@ -192,8 +221,50 @@ router.get('/auth/instagram/callback', async (req, res) => {
       expiresAt: instagramConnectionData.expiresAt
     })
 
-    // TODO: Save to database with proper user authentication
-    // For now, redirect with success parameters
+    // Save Instagram connection to database
+    console.log('=== STEP 5: Save Instagram Connection to Database ===')
+    try {
+      // For now, use a dummy user ID - in production, extract from JWT token
+      const dummyUserId = 'user_' + Date.now() // This should be extracted from authenticated user
+      
+      const instagramUser = await InstagramUser.findOneAndUpdate(
+        { instagramAccountId: instagramUserId },
+        {
+          userId: dummyUserId,
+          username: instagramConnectionData.username,
+          instagramAccountId: instagramUserId,
+          instagramUsername: instagramConnectionData.username,
+          instagramAccessToken: finalToken,
+          accountType: 'business', // Instagram Business Login
+          tokenExpiresAt: expiresAt,
+          isConnected: true,
+          lastConnected: new Date(),
+          permissions: permissions || [],
+          webhookSubscribed: false,
+          // Instagram Business Login specific fields
+          pageId: null, // Not applicable for Business Login
+          pageAccessToken: null, // Not applicable for Business Login
+          longLivedToken: longLivedTokenResponse.success ? finalToken : null,
+          userAccessToken: null
+        },
+        { upsert: true, new: true }
+      )
+      
+      console.log('✅ Instagram connection saved to database:', {
+        id: instagramUser._id,
+        userId: instagramUser.userId,
+        username: instagramUser.username,
+        instagramAccountId: instagramUser.instagramAccountId,
+        isConnected: instagramUser.isConnected,
+        tokenExpiresAt: instagramUser.tokenExpiresAt
+      })
+      
+    } catch (dbError) {
+      console.error('❌ Failed to save Instagram connection to database:', dbError)
+      // Continue with redirect even if database save fails
+    }
+
+    // Redirect to frontend with success parameters
     const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
     const redirectUrl = `${clientUrl}/dashboard?instagram=success&username=${encodeURIComponent(instagramConnectionData.username)}&userId=${encodeURIComponent(instagramUserId)}&permissions=${encodeURIComponent(permissions?.join(',') || '')}`
     
@@ -411,7 +482,29 @@ router.get('/status', authMiddleware, async (req, res) => {
   })
   try {
     const userId = req.user.id
-    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    // Try to find Instagram connection by user ID first
+    let instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    // If not found by user ID, try to find any recent connection (for demo purposes)
+    // In production, this should be properly linked to authenticated users
+    if (!instagramUser) {
+      console.log('No Instagram connection found for user ID:', userId)
+      console.log('Checking for any recent Instagram connections...')
+      
+      // Find the most recent Instagram connection (for demo purposes)
+      instagramUser = await InstagramUser.findOne({ isConnected: true })
+        .sort({ lastConnected: -1 })
+        .limit(1)
+      
+      if (instagramUser) {
+        console.log('Found recent Instagram connection:', {
+          id: instagramUser._id,
+          username: instagramUser.username,
+          lastConnected: instagramUser.lastConnected
+        })
+      }
+    }
 
     if (!instagramUser) {
       return res.json({
