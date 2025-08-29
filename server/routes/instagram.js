@@ -89,6 +89,73 @@ router.post('/debug/fix-user-id', async (req, res) => {
   }
 })
 
+// Debug endpoint to create test Instagram conversations
+router.post('/debug/create-test-conversations', async (req, res) => {
+  try {
+    const userId = '1' // Using the fixed user ID
+    
+    // Create some test Instagram messages
+    const testMessages = [
+      {
+        sender: 'Instagram User (john_doe)',
+        content: 'Hey! I saw your latest post, it was amazing! 🔥',
+        userId: userId,
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+        room: 'instagram',
+        source: 'instagram',
+        isFromInstagram: true,
+        instagramSenderId: 'john_doe_123',
+        instagramMessageId: 'msg_' + Date.now() + '_1',
+        instagramThreadId: 'john_doe_123'
+      },
+      {
+        sender: 'Instagram User (sarah_smith)',
+        content: 'Hi! I have a question about your products. Are they available for international shipping?',
+        userId: userId,
+        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
+        room: 'instagram',
+        source: 'instagram',
+        isFromInstagram: true,
+        instagramSenderId: 'sarah_smith_456',
+        instagramMessageId: 'msg_' + Date.now() + '_2',
+        instagramThreadId: 'sarah_smith_456'
+      },
+      {
+        sender: 'Instagram User (mike_wilson)',
+        content: 'Love your content! Keep it up! 👍',
+        userId: userId,
+        timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+        room: 'instagram',
+        source: 'instagram',
+        isFromInstagram: true,
+        instagramSenderId: 'mike_wilson_789',
+        instagramMessageId: 'msg_' + Date.now() + '_3',
+        instagramThreadId: 'mike_wilson_789'
+      }
+    ]
+    
+    // Save test messages to database
+    const savedMessages = await Message.insertMany(testMessages)
+    
+    res.json({
+      success: true,
+      message: 'Test Instagram conversations created successfully',
+      count: savedMessages.length,
+      conversations: savedMessages.map(msg => ({
+        senderId: msg.instagramSenderId,
+        content: msg.content,
+        timestamp: msg.timestamp
+      }))
+    })
+  } catch (error) {
+    console.error('Error creating test conversations:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create test conversations'
+    })
+  }
+})
+
 // Instagram Business Login OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID
