@@ -10,6 +10,8 @@
   from = "/api/*"
   to = "https://tish-production.up.railway.app/api/:splat"
   status = 200
+  force = true
+  headers = {Cache-Control = "no-cache"}
 
 [[redirects]]
   from = "/*"
