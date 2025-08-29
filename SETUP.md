@@ -73,6 +73,13 @@ META_VERIFY_TOKEN=your_webhook_verify_token_here
 - Check verify token matches exactly
 - Ensure HTTPS is used in production
 
+### "Callback URL or verify token couldn't be validated" Error
+- **Verify Token Mismatch**: Ensure `META_VERIFY_TOKEN` in your `.env` matches exactly what you set in Meta dashboard
+- **Webhook Endpoint**: Use `https://tish-production.up.railway.app/api/instagram/webhook` (not `/auth/instagram/webhook`)
+- **HTTPS Required**: Meta requires HTTPS for webhook endpoints in production
+- **Public Access**: Ensure your Railway app is publicly accessible
+- **Token Format**: Verify token should be alphanumeric (e.g., `instantchat_webhook_2024_secure_token`)
+
 ## 📚 Next Steps
 
 After successful setup:

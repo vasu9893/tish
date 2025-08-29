@@ -719,7 +719,9 @@ router.get('/webhook', (req, res) => {
   console.log('Instagram webhook verification request:', {
     mode,
     token,
-    challenge: challenge ? 'present' : 'missing'
+    challenge: challenge ? 'present' : 'missing',
+    expectedToken: process.env.META_VERIFY_TOKEN || 'instantchat_verify_token',
+    timestamp: new Date().toISOString()
   })
 
   // Verify token should match your app's verify token
@@ -732,10 +734,24 @@ router.get('/webhook', (req, res) => {
     console.error('Instagram webhook verification failed:', {
       mode,
       token,
-      expectedToken: verifyToken
+      expectedToken: verifyToken,
+      tokenMatch: token === verifyToken,
+      modeMatch: mode === 'subscribe'
     })
     res.status(403).send('Forbidden')
   }
+})
+
+// Webhook test endpoint for debugging
+router.get('/webhook/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Webhook endpoint is accessible',
+    timestamp: new Date().toISOString(),
+    verifyToken: process.env.META_VERIFY_TOKEN || 'instantchat_verify_token',
+    webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`,
+    note: 'Use this endpoint to test if your webhook is publicly accessible'
+  })
 })
 
 // Instagram Basic Display API webhook for incoming events (POST request)
