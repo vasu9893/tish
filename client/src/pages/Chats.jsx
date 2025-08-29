@@ -208,6 +208,52 @@ const Chats = ({ user }) => {
     }
   }
 
+  const importInstagramDM = async () => {
+    const senderId = prompt('Enter Instagram Sender ID (e.g., real_user_123):')
+    if (!senderId) return
+    
+    const senderName = prompt('Enter Sender Name (e.g., John Doe):')
+    const message = prompt('Enter Message Content:')
+    if (!message) return
+    
+    console.log('📥 Importing Instagram DM...', {
+      senderId, senderName, message,
+      timestamp: new Date().toISOString()
+    })
+    
+    try {
+      setIsRefreshing(true)
+      const response = await api.post('/api/instagram/debug/import-dm', {
+        senderId,
+        senderName,
+        message,
+        timestamp: new Date().toISOString()
+      })
+      
+      console.log('✅ Instagram DM Imported:', {
+        success: response.data.success,
+        messageId: response.data.data?.messageId,
+        senderId: response.data.data?.senderId
+      })
+      
+      if (response.data.success) {
+        // Reload conversations to show the new DM
+        await loadInstagramConversations()
+        alert(`✅ Imported DM from ${senderName || senderId}!`)
+      }
+    } catch (error) {
+      console.error('❌ Error Importing Instagram DM:', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        timestamp: new Date().toISOString()
+      })
+      alert('❌ Failed to import DM. Check console for details.')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
       {/* Conversations List */}
@@ -238,6 +284,16 @@ const Chats = ({ user }) => {
                   title="Create test conversations for demo"
                 >
                   🧪 Test
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={importInstagramDM}
+                  disabled={isRefreshing}
+                  className="h-8 text-xs"
+                  title="Import a real Instagram DM manually"
+                >
+                  📥 Import
                 </Button>
               </div>
             </div>

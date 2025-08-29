@@ -89,6 +89,55 @@ router.post('/debug/fix-user-id', async (req, res) => {
   }
 })
 
+// Manual DM import endpoint - for simulating real Instagram DMs
+router.post('/debug/import-dm', authMiddleware, async (req, res) => {
+  try {
+    const { senderId, senderName, message, timestamp } = req.body
+    const userId = req.user.id
+    
+    if (!senderId || !message) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'senderId and message are required' 
+      })
+    }
+    
+    // Create a realistic Instagram DM entry
+    const newMessage = new Message({
+      sender: senderName || `Instagram User (${senderId.slice(0, 8)}...)`,
+      content: message,
+      userId: userId,
+      timestamp: timestamp ? new Date(timestamp) : new Date(),
+      room: 'instagram',
+      source: 'manual_import', // Mark as manually imported
+      isFromInstagram: true,
+      instagramSenderId: senderId,
+      instagramMessageId: 'manual_' + Date.now(),
+      instagramThreadId: senderId
+    })
+    
+    await newMessage.save()
+    
+    res.json({
+      success: true,
+      message: 'Instagram DM imported successfully',
+      data: {
+        messageId: newMessage._id,
+        senderId: senderId,
+        content: message,
+        timestamp: newMessage.timestamp
+      }
+    })
+    
+  } catch (error) {
+    console.error('Error importing Instagram DM:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to import Instagram DM'
+    })
+  }
+})
+
 // Debug endpoint to create test Instagram conversations
 router.post('/debug/create-test-conversations', async (req, res) => {
   try {
