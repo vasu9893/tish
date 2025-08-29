@@ -18,12 +18,12 @@ const app = express()
 const server = http.createServer(app)
 
 // Get client URL from environment or use default
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000'
+const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
 
 // Initialize socket.io with proper CORS for production
 const io = socketIo(server, {
   cors: {
-    origin: [clientUrl, "http://localhost:3000", "https://localhost:3000"],
+    origin: [clientUrl, "https://instantchat.in"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]

@@ -11,20 +11,19 @@
  * @returns {string} Complete OAuth URL
  */
 function getAuthUrl({ state, reauth = false }) {
-  const appId = process.env.META_APP_ID
+  const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID
   const backendUrl = process.env.BACKEND_URL
   const scopes = process.env.REQUIRED_SCOPES || 'instagram_basic,instagram_manage_messages,pages_messaging,pages_show_list,pages_read_engagement,business_management'
   
   if (!appId || !backendUrl) {
-    throw new Error('Missing required environment variables: META_APP_ID or BACKEND_URL')
+    throw new Error('Missing required environment variables: INSTAGRAM_APP_ID/META_APP_ID or BACKEND_URL')
   }
 
   const redirectUri = `${backendUrl}/auth/instagram/callback`
   const authType = reauth ? 'reauthorize' : 'rerequest'
   
-  // TODO: Implement actual OAuth URL generation
-  // This should use Instagram Graph API OAuth flow
-  const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=${state}&auth_type=${authType}`
+  // Instagram Basic Display API OAuth URL (direct Instagram, no Facebook)
+  const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=${state}`
   
   return authUrl
 }
@@ -39,7 +38,7 @@ async function exchangeCodeForToken(code) {
     throw new Error('Authorization code is required')
   }
 
-  const appId = process.env.META_APP_ID
+  const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID
   const appSecret = process.env.META_APP_SECRET
   const backendUrl = process.env.BACKEND_URL
 

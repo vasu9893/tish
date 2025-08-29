@@ -111,9 +111,9 @@ const ConnectInstagram = ({ user, onLogout }) => {
             Connect Your Instagram Account
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Connect directly to Instagram using Instagram Basic Display API (no Facebook required) 
-            to access your profile, media, and receive webhooks for mentions and comments.
-            Manage all your Instagram interactions in one place.
+            Connect your Instagram Business account using Instagram Business Login 
+            to manage messages, comments, and automate your Instagram interactions.
+            Perfect for businesses and content creators.
           </p>
         </div>
 
@@ -185,7 +185,7 @@ const ConnectInstagram = ({ user, onLogout }) => {
                 </h3>
                 
                 <p className="text-gray-600 mb-8 max-w-lg mx-auto">
-                  By connecting your Instagram account, you'll be able to:
+                  Instagram Business Login provides powerful features for business accounts:
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -195,28 +195,28 @@ const ConnectInstagram = ({ user, onLogout }) => {
                         <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <h4 className="font-medium text-gray-900 mb-2">Receive Messages</h4>
-                    <p className="text-sm text-gray-600">Get Instagram DMs in real-time</p>
+                    <h4 className="font-medium text-gray-900 mb-2">Manage Messages</h4>
+                    <p className="text-sm text-gray-600">Send and receive Instagram DMs</p>
                   </div>
                   
                   <div className="text-center">
                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                       <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H6z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <h4 className="font-medium text-gray-900 mb-2">Send Replies</h4>
-                    <p className="text-sm text-gray-600">Respond directly from InstantChat</p>
+                    <h4 className="font-medium text-gray-900 mb-2">Manage Comments</h4>
+                    <p className="text-sm text-gray-600">Respond to comments and moderate content</p>
                   </div>
                   
                   <div className="text-center">
                     <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                       <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <h4 className="font-medium text-gray-900 mb-2">Unified Chat</h4>
-                    <p className="text-sm text-gray-600">Manage all conversations in one place</p>
+                    <h4 className="font-medium text-gray-900 mb-2">Content Publishing</h4>
+                    <p className="text-sm text-gray-600">Publish and manage Instagram content</p>
                   </div>
                 </div>
 
@@ -269,7 +269,7 @@ const ConnectInstagram = ({ user, onLogout }) => {
             </div>
             <div>
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 text-blue-600 font-bold">2</div>
-              <p>Complete Meta OAuth login and permissions</p>
+              <p>Complete Instagram Business Login and grant permissions</p>
             </div>
             <div>
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 text-blue-600 font-bold">3</div>

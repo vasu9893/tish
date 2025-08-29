@@ -147,7 +147,7 @@ const Login = ({ onLogin }) => {
                   onClick={() => {
                     const apiBase = process.env.NODE_ENV === 'production' 
                       ? 'https://tish-production.up.railway.app' 
-                      : 'http://localhost:5000'
+                      : 'https://tish-production.up.railway.app'
                     window.location = `${apiBase}/auth/instagram/start?next=/dashboard`
                   }}
                   className="w-full h-12 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold text-base flex items-center justify-center space-x-2"

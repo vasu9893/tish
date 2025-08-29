@@ -6,7 +6,7 @@ Add these variables to your `.env` file to configure the Redis-based queue syste
 
 ```bash
 # Redis Configuration (for BullMQ queues)
-REDIS_HOST=localhost
+REDIS_HOST=redis-service
 REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_DB=0
@@ -54,7 +54,7 @@ docker-compose up -d redis
 ## Configuration Details
 
 ### REDIS_HOST
-- **Default**: `localhost`
+- **Default**: `redis-service`
 - **Description**: Redis server hostname or IP address
 - **Production**: Use your Redis cloud service hostname
 
@@ -118,10 +118,10 @@ Monitor your Redis connection:
 
 ```bash
 # Check Redis connection
-curl http://localhost:5000/api/health/queues
+curl https://tish-production.up.railway.app/api/health/queues
 
 # View queue dashboard
-http://localhost:5000/admin/queues
+https://tish-production.up.railway.app/admin/queues
 ```
 
 ## Troubleshooting

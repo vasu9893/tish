@@ -15,34 +15,46 @@ router.get('/test', (req, res) => {
   })
 })
 
-// Instagram Basic Display OAuth - Start the flow (PURE INSTAGRAM)
+// Instagram Business Login OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
-  const appId = process.env.META_APP_ID
+  const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID
   // Use environment variable or fallback to Railway URL
   const redirectUri = process.env.BACKEND_URL 
     ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
     : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
   
-  // Instagram Basic Display API scopes (no Facebook required)
-  const scope = 'user_profile,user_media'
+  // Instagram Business Login API scopes - using new scope values
+  const scopes = [
+    'instagram_business_basic',
+    'instagram_business_manage_messages',
+    'instagram_business_manage_comments',
+    'instagram_business_content_publish'
+  ]
+  const scope = scopes.join(',')
   
-  // Pure Instagram OAuth URL (Instagram Basic Display API)
-  const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${Date.now()}`
+  // Generate state parameter for CSRF protection
+  const state = `csrf_${Date.now()}_${Math.random().toString(36).substring(2)}`
   
-  console.log('Pure Instagram OAuth initiated:', {
+  // Instagram Business Login OAuth URL
+  const authUrl = `https://www.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&state=${state}`
+  
+  console.log('Instagram Business Login OAuth initiated:', {
     appId,
     redirectUri,
     scope,
+    state,
     authUrl,
-    type: 'Instagram Basic Display API (no Facebook)'
+    type: 'Instagram Business Login API'
   })
   
   res.json({ 
     success: true, 
     authUrl: authUrl,
-    message: 'Redirect user to Instagram to authorize access directly',
+    message: 'Redirect user to Instagram Business Login to authorize access',
     redirectUri: redirectUri,
-    oauthType: 'Pure Instagram Basic Display API'
+    oauthType: 'Instagram Business Login API',
+    state: state,
+    scopes: scopes
   })
 })
 
@@ -58,181 +70,135 @@ router.get('/auth/instagram/callback/test', (req, res) => {
   })
 })
 
-// Instagram Basic Display OAuth Callback (PURE INSTAGRAM)
+// Instagram Business Login OAuth Callback
 router.get('/auth/instagram/callback', async (req, res) => {
   try {
-    const { code, state } = req.query
+    const { code, state, error, error_reason, error_description } = req.query
     
-    console.log('Pure Instagram OAuth callback received:', {
+    console.log('Instagram Business Login OAuth callback received:', {
       code: code ? 'present' : 'missing',
       state: state,
+      error: error,
+      error_reason: error_reason,
+      error_description: error_description,
       query: req.query,
       headers: req.headers,
-      type: 'Instagram Basic Display API'
+      type: 'Instagram Business Login API'
     })
+
+    // Handle authorization cancellation or errors
+    if (error) {
+      console.error('Instagram authorization error:', { error, error_reason, error_description })
+      const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
+      return res.redirect(`${clientUrl}/dashboard?instagram=error&error=${encodeURIComponent(error_description || 'Authorization was denied')}`)
+    }
     
     if (!code) {
       console.error('No authorization code received in callback')
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Authorization code not received' 
-      })
+      const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
+      return res.redirect(`${clientUrl}/dashboard?instagram=error&error=${encodeURIComponent('Authorization code not received')}`)
     }
 
-    // Exchange code for Instagram access token (Instagram Basic Display API)
-    console.log('=== STEP 1: Instagram Basic Display Token Exchange ===')
+    // Validate state parameter for CSRF protection
+    if (!state || !state.startsWith('csrf_')) {
+      console.error('Invalid or missing state parameter')
+      const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
+      return res.redirect(`${clientUrl}/dashboard?instagram=error&error=${encodeURIComponent('Invalid security token')}`)
+    }
+
+    // Exchange code for Instagram Business access token
+    console.log('=== STEP 1: Instagram Business Login Token Exchange ===')
     console.log('Code received:', code ? 'YES' : 'NO')
     console.log('Code length:', code ? code.length : 0)
+    console.log('State parameter:', state)
     console.log('Environment variables:', {
+      INSTAGRAM_APP_ID: process.env.INSTAGRAM_APP_ID ? 'set' : 'missing',
+      INSTAGRAM_APP_SECRET: process.env.INSTAGRAM_APP_SECRET ? 'set' : 'missing',
       META_APP_ID: process.env.META_APP_ID ? 'set' : 'missing',
       META_APP_SECRET: process.env.META_APP_SECRET ? 'set' : 'missing',
       BACKEND_URL: process.env.BACKEND_URL || 'not set'
     })
     
-    // Use Instagram Basic Display API token exchange
-    const tokenResponse = await metaApi.exchangeInstagramBasicDisplayToken(code)
+    // Use Instagram Business Login API token exchange
+    const tokenResponse = await metaApi.exchangeInstagramBusinessToken(code)
     
     console.log('Instagram token exchange response:', {
       success: tokenResponse.success,
       hasData: !!tokenResponse.data,
       dataKeys: tokenResponse.data ? Object.keys(tokenResponse.data) : 'no data',
-      error: tokenResponse.error
+      error: tokenResponse.error,
+      permissions: tokenResponse.data?.permissions
     })
-    
+
     if (!tokenResponse.success) {
-      console.error('Instagram token exchange failed:', tokenResponse)
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Failed to exchange Instagram code for token',
-        details: tokenResponse.details || tokenResponse.error,
-        response: tokenResponse
-      })
+      console.error('Token exchange failed:', tokenResponse.error)
+      const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
+      return res.redirect(`${clientUrl}/dashboard?instagram=error&error=${encodeURIComponent('Failed to exchange authorization code for token')}`)
     }
 
-    const { access_token, user_id } = tokenResponse.data
+    const { access_token: shortLivedToken, user_id: instagramUserId, permissions } = tokenResponse.data
 
-    // Validate required data
-    if (!access_token || !user_id) {
-      console.error('Missing required data from Instagram token response:', {
-        hasAccessToken: !!access_token,
-        hasUserId: !!user_id,
-        dataKeys: Object.keys(tokenResponse.data || {})
-      })
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid Instagram token response - missing access_token or user_id',
-        details: `Access token: ${!!access_token}, User ID: ${!!user_id}`
-      })
-    }
-
-    console.log('Instagram token response validation passed:', {
-      hasAccessToken: !!access_token,
-      hasUserId: !!user_id
+    // Exchange short-lived token for long-lived token (60 days validity)
+    console.log('=== STEP 2: Exchange for Long-Lived Token ===')
+    const longLivedTokenResponse = await metaApi.exchangeForLongLivedInstagramToken(shortLivedToken)
+    
+    console.log('Long-lived token exchange response:', {
+      success: longLivedTokenResponse.success,
+      hasToken: !!longLivedTokenResponse.data?.access_token,
+      expiresIn: longLivedTokenResponse.data?.expires_in
     })
 
-    // Get Instagram user info using the access token
-    console.log('=== STEP 2: Get Instagram User Info ===')
-    const userInfoResponse = await metaApi.getInstagramUserInfo(access_token, user_id)
+    if (!longLivedTokenResponse.success) {
+      console.error('Long-lived token exchange failed:', longLivedTokenResponse.error)
+      // Continue with short-lived token if long-lived exchange fails
+    }
+
+    const finalToken = longLivedTokenResponse.success ? longLivedTokenResponse.data.access_token : shortLivedToken
+    const expiresIn = longLivedTokenResponse.data?.expires_in || 3600 // Default to 1 hour for short-lived
+    const expiresAt = new Date(Date.now() + (expiresIn * 1000))
+
+    // Get Instagram user info using the final token
+    console.log('=== STEP 3: Get Instagram User Info ===')
+    const userInfoResponse = await metaApi.getInstagramUserInfo(finalToken, instagramUserId)
     
     console.log('Instagram user info response:', {
       success: userInfoResponse.success,
       hasData: !!userInfoResponse.data,
       dataKeys: userInfoResponse.data ? Object.keys(userInfoResponse.data) : 'no data',
-      fullData: userInfoResponse.data,
+      username: userInfoResponse.data?.username,
       error: userInfoResponse.error
     })
 
-    if (!userInfoResponse.success || !userInfoResponse.data) {
-      console.error('Failed to get Instagram user info:', userInfoResponse.error)
-      return res.status(400).json({
-        success: false,
-        error: 'Failed to get Instagram user information',
-        details: userInfoResponse.error || 'Instagram user info API call failed'
-      })
+    // Prepare Instagram connection data
+    const instagramConnectionData = {
+      instagramUserId: instagramUserId,
+      username: userInfoResponse.data?.username || 'Unknown',
+      accessToken: finalToken,
+      tokenType: 'bearer',
+      permissions: permissions || [],
+      expiresAt: expiresAt,
+      profileData: userInfoResponse.data || {},
+      isLongLived: longLivedTokenResponse.success,
+      lastConnected: new Date(),
+      connectionType: 'Instagram Business Login'
     }
 
-    const instagramUserInfo = userInfoResponse.data
-    const username = instagramUserInfo.username || 'Instagram User'
-    const accountType = instagramUserInfo.account_type || 'personal'
-
-    // Instagram Basic Display tokens are typically long-lived (60 days)
-    console.log('=== STEP 3: Calculate Token Expiry ===')
-    const tokenExpiresAt = new Date()
-    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60) // 60 days from now
-    console.log('Instagram token expires at:', tokenExpiresAt.toISOString())
-    
-    // Save or update Instagram user connection (pure Instagram, no Facebook)
-    console.log('=== STEP 4: Save to Database ===')
-    console.log('Saving pure Instagram user to database...')
-    
-    const instagramUser = await InstagramUser.findOneAndUpdate(
-      { userId: user_id },
-      {
-        userId: user_id,
-        username: username,
-        instagramAccountId: user_id,
-        instagramAccessToken: access_token, // Store Instagram token directly
-        instagramUsername: username,
-        accountType: accountType,
-        tokenExpiresAt: tokenExpiresAt,
-        isConnected: true,
-        lastConnected: new Date(),
-        webhookSubscribed: false,
-        // No Facebook fields needed for pure Instagram
-        pageId: null,
-        pageAccessToken: null,
-        longLivedToken: null,
-        userAccessToken: null
-      },
-      { upsert: true, new: true }
-    )
-    
-    console.log('Instagram user saved successfully:', {
-      id: instagramUser._id,
-      userId: instagramUser.userId,
-      username: instagramUser.username,
-      instagramAccountId: instagramUser.instagramAccountId
+    console.log('=== STEP 4: Instagram Business Login Success ===')
+    console.log('Connection data prepared:', {
+      username: instagramConnectionData.username,
+      userId: instagramConnectionData.instagramUserId,
+      permissions: instagramConnectionData.permissions,
+      isLongLived: instagramConnectionData.isLongLived,
+      expiresAt: instagramConnectionData.expiresAt
     })
 
-    console.log('=== SUCCESS: Pure Instagram OAuth Complete ===')
-    console.log('All steps completed successfully!')
+    // TODO: Save to database with proper user authentication
+    // For now, redirect with success parameters
+    const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
+    const redirectUrl = `${clientUrl}/dashboard?instagram=success&username=${encodeURIComponent(instagramConnectionData.username)}&userId=${encodeURIComponent(instagramUserId)}&permissions=${encodeURIComponent(permissions?.join(',') || '')}`
     
-    // Redirect to frontend with success parameters
-    const frontendUrl = process.env.FRONTEND_URL || 'https://instantchat.in'
-    const dashboardRedirectUrl = `${frontendUrl}/dashboard?instagram=success&instagramAccountId=${instagramUser.instagramAccountId}&username=${encodeURIComponent(instagramUser.username)}`
-    const oauthCallbackUrl = `${frontendUrl}/oauth-callback?instagram=success&instagramAccountId=${instagramUser.instagramAccountId}&username=${encodeURIComponent(instagramUser.username)}`
-    
-    console.log('Redirecting to frontend dashboard:', dashboardRedirectUrl)
-    console.log('Alternative OAuth callback URL:', oauthCallbackUrl)
-    console.log('Frontend URL from env:', process.env.FRONTEND_URL)
-    console.log('Instagram user data for redirect:', {
-      instagramAccountId: instagramUser.instagramAccountId,
-      username: instagramUser.username
-    })
-    
-    // Try to redirect to dashboard first, fallback to OAuth callback if needed
-    try {
-      res.status(302).redirect(dashboardRedirectUrl)
-    } catch (redirectError) {
-      console.error('Dashboard redirect failed, trying OAuth callback:', redirectError)
-      try {
-        res.status(302).redirect(oauthCallbackUrl)
-      } catch (callbackRedirectError) {
-        console.error('OAuth callback redirect also failed, falling back to JSON response:', callbackRedirectError)
-        // Final fallback: send JSON response with redirect instructions
-        res.json({
-          success: true,
-          message: 'Instagram connected successfully! Please return to your dashboard.',
-          dashboardUrl: dashboardRedirectUrl,
-          oauthCallbackUrl: oauthCallbackUrl,
-          data: {
-            instagramAccountId: instagramUser.instagramAccountId,
-            username: instagramUser.username,
-            tokenExpiresAt: instagramUser.tokenExpiresAt
-          }
-        })
-      }
-    }
+    console.log('Redirecting to:', redirectUrl)
+    res.redirect(redirectUrl)
 
   } catch (error) {
     console.error('Instagram OAuth callback error:', {

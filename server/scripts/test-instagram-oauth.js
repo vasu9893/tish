@@ -11,7 +11,7 @@ const dotenv = require('dotenv')
 // Load environment variables
 dotenv.config()
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000'
+const BACKEND_URL = process.env.BACKEND_URL || 'https://tish-production.up.railway.app'
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://instantchat.in'
 
 console.log('🧪 Testing Instagram OAuth Flow')

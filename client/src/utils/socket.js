@@ -7,7 +7,7 @@ class SocketService {
     this.listeners = {}
     
     // Use environment variable for API URL or fallback to localhost
-    this.apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+    this.apiUrl = import.meta.env.VITE_API_URL || 'https://tish-production.up.railway.app'
   }
 
   connect(token) {

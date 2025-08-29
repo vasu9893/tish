@@ -176,8 +176,8 @@ class MetaApiHelper {
         `${this.graphUrl}/oauth/access_token`,
         {
           params: {
-            client_id: process.env.META_APP_ID,
-            client_secret: process.env.META_APP_SECRET,
+            client_id: process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID,
+            client_secret: process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET,
             redirect_uri: `${redirectUri}/api/instagram/auth/instagram/callback`,
             code: code
           }
@@ -194,7 +194,7 @@ class MetaApiHelper {
         response: error.response?.data,
         status: error.response?.status,
         params: {
-          client_id: process.env.META_APP_ID,
+          client_id: process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID,
           redirect_uri: `${process.env.BACKEND_URL || 'https://tish-production.up.railway.app'}/api/instagram/auth/instagram/callback`,
           code: code ? 'present' : 'missing'
         }
@@ -263,6 +263,188 @@ class MetaApiHelper {
    * @param {string} code - Authorization code from Instagram OAuth
    * @returns {Promise<Object>} Instagram token response
    */
+  /**
+   * Exchange Instagram Business Login authorization code for access token
+   * @param {string} code - Authorization code from Instagram Business Login
+   * @returns {Promise<Object>} Token exchange response
+   */
+  async exchangeInstagramBusinessToken(code) {
+    try {
+      const redirectUri = process.env.BACKEND_URL
+        ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
+        : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
+
+      console.log('Exchanging Instagram Business Login code for token:', {
+        code: code ? code.substring(0, 10) + '...' : 'none',
+        redirectUri: redirectUri,
+        endpoint: 'https://api.instagram.com/oauth/access_token'
+      })
+
+      // Use form data for Instagram Business Login token exchange
+      const formData = new URLSearchParams({
+        client_id: process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID,
+        client_secret: process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+        code: code
+      })
+
+      const response = await axios.post(
+        'https://api.instagram.com/oauth/access_token',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      )
+
+      console.log('Instagram Business Login token response:', {
+        status: response.status,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : 'no data'
+      })
+
+      // Instagram Business Login returns data array format
+      if (response.data && response.data.data && response.data.data.length > 0) {
+        const tokenData = response.data.data[0]
+        return {
+          success: true,
+          data: {
+            access_token: tokenData.access_token,
+            user_id: tokenData.user_id,
+            permissions: tokenData.permissions ? tokenData.permissions.split(',') : [],
+            token_type: 'bearer'
+          }
+        }
+      }
+
+      // Fallback for different response format
+      if (response.data && response.data.access_token) {
+        return {
+          success: true,
+          data: {
+            access_token: response.data.access_token,
+            user_id: response.data.user_id,
+            permissions: response.data.permissions ? response.data.permissions.split(',') : [],
+            token_type: response.data.token_type || 'bearer'
+          }
+        }
+      }
+
+      throw new Error('Invalid token response format')
+
+    } catch (error) {
+      console.error('Instagram Business Login token exchange error:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Exchange short-lived Instagram Business token for long-lived token
+   * @param {string} shortLivedToken - Short-lived access token
+   * @returns {Promise<Object>} Long-lived token response
+   */
+  async exchangeForLongLivedInstagramToken(shortLivedToken) {
+    try {
+      console.log('Exchanging short-lived token for long-lived token')
+
+      const response = await axios.get(
+        'https://graph.instagram.com/access_token',
+        {
+          params: {
+            grant_type: 'ig_exchange_token',
+            client_secret: process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET,
+            access_token: shortLivedToken
+          }
+        }
+      )
+
+      console.log('Long-lived token exchange response:', {
+        status: response.status,
+        hasAccessToken: !!response.data.access_token,
+        expiresIn: response.data.expires_in
+      })
+
+      return {
+        success: true,
+        data: {
+          access_token: response.data.access_token,
+          token_type: response.data.token_type || 'bearer',
+          expires_in: response.data.expires_in // Number of seconds until token expires
+        }
+      }
+
+    } catch (error) {
+      console.error('Long-lived token exchange error:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Refresh a long-lived Instagram Business token
+   * @param {string} longLivedToken - Long-lived access token to refresh
+   * @returns {Promise<Object>} Refreshed token response
+   */
+  async refreshInstagramToken(longLivedToken) {
+    try {
+      console.log('Refreshing long-lived Instagram token')
+
+      const response = await axios.get(
+        'https://graph.instagram.com/refresh_access_token',
+        {
+          params: {
+            grant_type: 'ig_refresh_token',
+            access_token: longLivedToken
+          }
+        }
+      )
+
+      console.log('Token refresh response:', {
+        status: response.status,
+        hasAccessToken: !!response.data.access_token,
+        expiresIn: response.data.expires_in
+      })
+
+      return {
+        success: true,
+        data: {
+          access_token: response.data.access_token,
+          token_type: response.data.token_type || 'bearer',
+          expires_in: response.data.expires_in // Number of seconds until token expires
+        }
+      }
+
+    } catch (error) {
+      console.error('Token refresh error:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
   async exchangeInstagramBasicDisplayToken(code) {
     try {
       console.log('Exchanging Instagram Basic Display code for token:', {
@@ -277,8 +459,8 @@ class MetaApiHelper {
         null,
         {
           params: {
-            client_id: process.env.META_APP_ID,
-            client_secret: process.env.META_APP_SECRET,
+            client_id: process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID,
+            client_secret: process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET,
             grant_type: 'authorization_code',
             redirect_uri: process.env.BACKEND_URL
               ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
@@ -299,6 +481,155 @@ class MetaApiHelper {
       }
     } catch (error) {
       console.error('Error exchanging Instagram Basic Display code for token:', error.response?.data || error.message)
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Exchange Instagram Business Login authorization code for access token
+   * @param {string} code - Authorization code from Instagram Business Login
+   * @returns {Promise<Object>} Token response
+   */
+  async exchangeInstagramBusinessToken(code) {
+    try {
+      console.log('Exchanging Instagram Business Login code for token:', {
+        code: code ? code.substring(0, 10) + '...' : 'none',
+        redirectUri: process.env.BACKEND_URL
+          ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback`
+          : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback'
+      })
+
+      // Step 1: Exchange authorization code for short-lived access token
+      const response = await axios.post(
+        'https://api.instagram.com/oauth/access_token',
+        `client_id=${process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID}&client_secret=${process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET}&grant_type=authorization_code&redirect_uri=${encodeURIComponent(process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/api/instagram/auth/instagram/callback` : 'https://tish-production.up.railway.app/api/instagram/auth/instagram/callback')}&code=${code}`,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      )
+
+      console.log('Instagram Business Login token exchange successful:', {
+        hasAccessToken: !!response.data.data?.[0]?.access_token,
+        hasUserId: !!response.data.data?.[0]?.user_id,
+        hasPermissions: !!response.data.data?.[0]?.permissions,
+        responseStructure: response.data.data ? 'array format' : 'unknown format',
+        dataKeys: response.data.data?.[0] ? Object.keys(response.data.data[0]) : 'no data'
+      })
+
+      // Extract token data from the response
+      const tokenData = response.data.data?.[0] || response.data
+      
+      if (!tokenData.access_token) {
+        throw new Error('No access token received from Instagram Business Login')
+      }
+
+      // Step 2: Exchange short-lived token for long-lived token (optional but recommended)
+      try {
+        const longLivedResponse = await this.exchangeForLongLivedToken(tokenData.access_token)
+        if (longLivedResponse.success) {
+          tokenData.access_token = longLivedResponse.data.access_token
+          tokenData.expires_in = longLivedResponse.data.expires_in
+          tokenData.token_type = longLivedResponse.data.token_type
+          console.log('Successfully exchanged for long-lived token')
+        }
+      } catch (longLivedError) {
+        console.warn('Failed to exchange for long-lived token, using short-lived token:', longLivedError.message)
+      }
+
+      return {
+        success: true,
+        data: tokenData
+      }
+    } catch (error) {
+      console.error('Instagram Business Login token exchange failed:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        fullError: error.response?.data
+      })
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Exchange short-lived Instagram Business token for long-lived token
+   * @param {string} shortLivedToken - Short-lived access token
+   * @returns {Promise<Object>} Long-lived token response
+   */
+  async exchangeForLongLivedToken(shortLivedToken) {
+    try {
+      const response = await axios.get(
+        'https://graph.instagram.com/access_token',
+        {
+          params: {
+            grant_type: 'ig_exchange_token',
+            client_secret: process.env.META_APP_SECRET,
+            access_token: shortLivedToken
+          }
+        }
+      )
+
+      console.log('Long-lived token exchange successful:', {
+        hasAccessToken: !!response.data.access_token,
+        expiresIn: response.data.expires_in,
+        tokenType: response.data.token_type
+      })
+
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Long-lived token exchange failed:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status
+      })
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      }
+    }
+  }
+
+  /**
+   * Refresh a long-lived Instagram Business token
+   * @param {string} longLivedToken - Current long-lived access token
+   * @returns {Promise<Object>} Refreshed token response
+   */
+  async refreshLongLivedToken(longLivedToken) {
+    try {
+      const response = await axios.get(
+        'https://graph.instagram.com/refresh_access_token',
+        {
+          params: {
+            grant_type: 'ig_refresh_token',
+            access_token: longLivedToken
+          }
+        }
+      )
+
+      console.log('Token refresh successful:', {
+        hasAccessToken: !!response.data.access_token,
+        expiresIn: response.data.expires_in,
+        tokenType: response.data.token_type
+      })
+
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status
+      })
       return {
         success: false,
         error: error.response?.data || error.message

@@ -2,7 +2,7 @@ const Redis = require('ioredis');
 
 // Redis connection configuration
 const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
+  host: process.env.REDIS_HOST || 'redis-service',
   port: process.env.REDIS_PORT || 6379,
   password: process.env.REDIS_PASSWORD,
   db: process.env.REDIS_DB || 0,

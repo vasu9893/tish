@@ -3,7 +3,7 @@ import axios from 'axios'
 // Debug logging for API configuration
 const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL
-  const fallbackUrl = 'http://localhost:5000'
+  const fallbackUrl = 'https://tish-production.up.railway.app'
   const finalUrl = envUrl || fallbackUrl
   
   console.log('🔧 API Configuration Debug:', {

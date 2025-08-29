@@ -61,22 +61,22 @@ const Dashboard = ({ user, onLogout }) => {
     })
 
     if (instagramSuccess === 'success') {
-      const pageId = urlParams.get('pageId')
-      const pageName = urlParams.get('pageName')
-      const instagramAccountId = urlParams.get('instagramAccountId')
+      const username = urlParams.get('username')
+      const userId = urlParams.get('userId')
+      const permissions = urlParams.get('permissions')
 
-      if (pageId && pageName) {
-        console.log('🎉 Dashboard: Instagram OAuth Success Detected:', { 
-          pageId, 
-          pageName, 
-          instagramAccountId,
+      if (username && userId) {
+        console.log('🎉 Dashboard: Instagram Business Login Success Detected:', { 
+          username, 
+          userId, 
+          permissions,
           timestamp: new Date().toISOString()
         })
 
         setSuccessData({
-          pageId,
-          pageName: decodeURIComponent(pageName),
-          instagramAccountId
+          username: decodeURIComponent(username),
+          userId: userId,
+          permissions: permissions ? decodeURIComponent(permissions).split(',') : []
         })
         setShowSuccessMessage(true)
 
@@ -102,6 +102,21 @@ const Dashboard = ({ user, onLogout }) => {
           setSuccessData(null)
         }, 5000)
       }
+    }
+
+    // Handle Instagram Business Login errors
+    const instagramError = urlParams.get('error')
+    if (instagramError) {
+      console.log('❌ Dashboard: Instagram Business Login Error Detected:', { 
+        error: instagramError,
+        timestamp: new Date().toISOString()
+      })
+      
+      // Show error message (you can implement error state if needed)
+      console.error('Instagram connection error:', decodeURIComponent(instagramError))
+      
+      // Clear URL parameters
+      navigate(location.pathname, { replace: true })
     }
   }, [location.search, navigate])
 
@@ -166,10 +181,13 @@ const Dashboard = ({ user, onLogout }) => {
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <div>
                     <p className="text-sm font-medium text-green-800">
-                      Instagram Connected Successfully!
+                      Instagram Business Account Connected Successfully!
                     </p>
                     <p className="text-xs text-green-600">
-                      Connected to {successData.pageName} (ID: {successData.pageId})
+                      Connected as @{successData.username} (ID: {successData.userId})
+                      {successData.permissions && successData.permissions.length > 0 && (
+                        <span className="ml-2">• Permissions: {successData.permissions.join(', ')}</span>
+                      )}
                     </p>
                   </div>
                 </div>
