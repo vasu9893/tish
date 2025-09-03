@@ -10,6 +10,54 @@ class WebhookProcessor {
     this.batchSize = 100;
     this.retryDelay = 5000;
     this.maxRetries = 3;
+    this.socketIO = null; // Will be set by the server
+  }
+
+  /**
+   * Set Socket.IO instance for broadcasting
+   */
+  setSocketIO(io) {
+    this.socketIO = io;
+    console.log('🔌 Socket.IO instance set for webhook broadcasting');
+  }
+
+  /**
+   * Broadcast webhook event to Socket.IO clients
+   */
+  broadcastWebhookEvent(eventData) {
+    if (!this.socketIO) {
+      console.log('⚠️ Socket.IO not available for broadcasting');
+      return;
+    }
+
+    try {
+      const eventMessage = {
+        id: eventData.id || `webhook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        eventType: eventData.eventType || eventData.type || 'unknown',
+        sender: {
+          id: eventData.sender?.id || eventData.from?.id || eventData.senderId || 'unknown',
+          username: eventData.sender?.username || eventData.from?.username || eventData.senderId || 'Unknown User'
+        },
+        content: {
+          text: eventData.message?.text || eventData.comment?.text || eventData.content || 'No content available'
+        },
+        timestamp: eventData.timestamp || eventData.created_time || new Date().toISOString(),
+        accountId: eventData.accountId || eventData.instagramAccountId || 'unknown',
+        payload: eventData // Store full payload for details view
+      };
+
+      console.log('📤 Broadcasting webhook event via Socket.IO:', {
+        eventType: eventMessage.eventType,
+        sender: eventMessage.sender.username,
+        content: eventMessage.content.text.substring(0, 50) + '...'
+      });
+
+      // Broadcast to all connected clients
+      this.socketIO.emit('webhook_event', eventMessage);
+
+    } catch (error) {
+      console.error('❌ Failed to broadcast webhook event:', error);
+    }
   }
 
   /**
@@ -373,6 +421,9 @@ class WebhookProcessor {
 
       // Add to processing queue
       this.addToQueue(webhookEvent);
+
+      // Broadcast event to Socket.IO clients
+      this.broadcastWebhookEvent(event);
 
       console.log('✅ Event processed successfully:', {
         eventId: webhookEvent.eventId,

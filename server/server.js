@@ -78,6 +78,11 @@ app.use('/webhook', require('./routes/webhook'))
 // Webhook Management System
 app.use('/api/webhooks', require('./routes/webhooks'))
 
+// Initialize webhook processor with Socket.IO
+const webhookProcessor = require('./services/webhookProcessor')
+webhookProcessor.setSocketIO(io)
+console.log('🔌 Webhook processor connected to Socket.IO for real-time broadcasting')
+
 // Bull Board admin dashboard (temporarily disabled)
 // app.use('/admin/queues', bullBoardAdapter.getRouter())
 
@@ -95,11 +100,168 @@ io.use((socket, next) => {
   next()
 })
 
+// Store connected clients for notification management
+const connectedClients = new Map()
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id)
   
+  let clientInfo = {
+    socket,
+    userId: null,
+    authenticated: false,
+    subscriptions: new Set(),
+    lastHeartbeat: Date.now()
+  }
+  
   // Join default room
   socket.join('general')
+  
+  // ===== NOTIFICATION EVENT HANDLERS =====
+  
+  // Handle authentication for notifications
+  socket.on('authenticate', async (data) => {
+    try {
+      console.log('🔐 Socket.IO authentication request:', { socketId: socket.id, userId: data.userId })
+      
+      // In production, verify JWT token here
+      // const decoded = jwt.verify(data.token, process.env.JWT_SECRET)
+      
+      clientInfo.userId = data.userId || socket.userId
+      clientInfo.authenticated = true
+      connectedClients.set(clientInfo.userId, clientInfo)
+      
+      // Send success response
+      socket.emit('auth_success', {
+        message: 'Authentication successful',
+        userId: clientInfo.userId,
+        timestamp: Date.now()
+      })
+      
+      console.log('✅ Client authenticated:', clientInfo.userId, 'Socket:', socket.id)
+      
+      // Send connection info
+      socket.emit('connection_info', {
+        status: 'connected',
+        subscriptions: Array.from(clientInfo.subscriptions),
+        timestamp: Date.now()
+      })
+      
+    } catch (error) {
+      console.error('❌ Socket.IO authentication failed:', error.message)
+      
+      socket.emit('auth_failed', {
+        reason: 'Invalid token',
+        timestamp: Date.now()
+      })
+      
+      socket.disconnect(true)
+    }
+  })
+  
+  // Handle event subscriptions
+  socket.on('subscribe', (data) => {
+    if (!clientInfo.authenticated) {
+      socket.emit('error', {
+        message: 'Not authenticated',
+        timestamp: Date.now()
+      })
+      return
+    }
+    
+    console.log('📝 Client subscription request:', { userId: clientInfo.userId, eventTypes: data.eventTypes })
+    
+    // Add event types to subscriptions
+    data.eventTypes.forEach(eventType => {
+      clientInfo.subscriptions.add(eventType)
+    })
+    
+    console.log('📝 Client subscribed to:', Array.from(clientInfo.subscriptions))
+    
+    // Send confirmation
+    socket.emit('subscription_confirmed', {
+      eventTypes: Array.from(clientInfo.subscriptions),
+      timestamp: Date.now()
+    })
+  })
+  
+  // Handle unsubscription
+  socket.on('unsubscribe', (data) => {
+    if (!clientInfo.authenticated) {
+      socket.emit('error', {
+        message: 'Not authenticated',
+        timestamp: Date.now()
+      })
+      return
+    }
+    
+    console.log('📝 Client unsubscription request:', { userId: clientInfo.userId, eventTypes: data.eventTypes })
+    
+    // Remove event types from subscriptions
+    data.eventTypes.forEach(eventType => {
+      clientInfo.subscriptions.delete(eventType)
+    })
+    
+    console.log('📝 Client subscriptions after unsubscribe:', Array.from(clientInfo.subscriptions))
+    
+    // Send confirmation
+    socket.emit('subscription_confirmed', {
+      eventTypes: Array.from(clientInfo.subscriptions),
+      timestamp: Date.now()
+    })
+  })
+  
+  // Handle get subscriptions request
+  socket.on('get_subscriptions', (data) => {
+    if (!clientInfo.authenticated) {
+      socket.emit('error', {
+        message: 'Not authenticated',
+        timestamp: Date.now()
+      })
+      return
+    }
+    
+    console.log('📝 Client requesting subscriptions:', { userId: clientInfo.userId })
+    
+    socket.emit('subscription_confirmed', {
+      eventTypes: Array.from(clientInfo.subscriptions),
+      timestamp: Date.now()
+    })
+  })
+  
+  // Handle test connection
+  socket.on('test_connection', (data) => {
+    if (!clientInfo.authenticated) {
+      socket.emit('error', {
+        message: 'Not authenticated',
+        timestamp: Date.now()
+      })
+      return
+    }
+    
+    console.log('🧪 Client testing connection:', { userId: clientInfo.userId, socketId: socket.id })
+    
+    socket.emit('connection_info', {
+      status: 'connected',
+      subscriptions: Array.from(clientInfo.subscriptions),
+      timestamp: Date.now()
+    })
+  })
+  
+  // Handle heartbeat
+  socket.on('heartbeat', (data) => {
+    clientInfo.lastHeartbeat = Date.now()
+    
+    console.log('💓 Heartbeat received:', { userId: clientInfo.userId, clientId: data.clientId })
+    
+    // Send heartbeat response
+    socket.emit('heartbeat_response', {
+      timestamp: Date.now(),
+      serverTime: new Date().toISOString()
+    })
+  })
+  
+  // ===== EXISTING MESSAGE HANDLERS =====
   
   // Handle message sending
   socket.on('sendMessage', async (messageData) => {
@@ -158,10 +320,162 @@ io.on('connection', (socket) => {
     }
   })
   
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id)
+  // Handle disconnect
+  socket.on('disconnect', (reason) => {
+    console.log('User disconnected:', socket.id, 'Reason:', reason)
+    
+    // Clean up client info
+    if (clientInfo.userId) {
+      connectedClients.delete(clientInfo.userId)
+      console.log('🧹 Cleaned up client:', clientInfo.userId)
+    }
+  })
+  
+  // Handle errors
+  socket.on('error', (error) => {
+    console.error('❌ Socket.IO error:', error)
   })
 })
+
+// ===== WEBHOOK BROADCASTING FUNCTIONS =====
+
+// Function to broadcast webhook events to subscribed clients
+function broadcastWebhookEvent(eventData) {
+  const eventMessage = {
+    id: eventData.id || `webhook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    eventType: eventData.eventType || eventData.type || 'unknown',
+    sender: {
+      id: eventData.sender?.id || eventData.from?.id || eventData.senderId || 'unknown',
+      username: eventData.sender?.username || eventData.from?.username || eventData.senderId || 'Unknown User'
+    },
+    content: {
+      text: eventData.message?.text || eventData.comment?.text || eventData.content || 'No content available'
+    },
+    timestamp: eventData.timestamp || eventData.created_time || new Date().toISOString(),
+    accountId: eventData.accountId || eventData.instagramAccountId || 'unknown',
+    payload: eventData // Store full payload for details view
+  }
+  
+  console.log('📤 Broadcasting webhook event:', {
+    eventType: eventMessage.eventType,
+    sender: eventMessage.sender.username,
+    content: eventMessage.content.text.substring(0, 50) + '...'
+  })
+  
+  let broadcastCount = 0
+  
+  connectedClients.forEach((clientInfo, userId) => {
+    if (clientInfo.authenticated && 
+        clientInfo.subscriptions.has(eventMessage.eventType) &&
+        clientInfo.socket.connected) {
+      
+      try {
+        clientInfo.socket.emit('webhook_event', eventMessage)
+        broadcastCount++
+        console.log(`📤 Sent webhook event to client: ${userId}`)
+      } catch (error) {
+        console.error(`❌ Failed to send to client ${userId}:`, error)
+      }
+    }
+  })
+  
+  console.log(`📊 Webhook event broadcasted to ${broadcastCount} clients`)
+  
+  // Also emit to general room for any other listeners
+  io.emit('webhook_event', eventMessage)
+}
+
+// Function to broadcast general notifications
+function broadcastNotification(notificationData) {
+  const notificationMessage = {
+    id: notificationData.id || `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    eventType: notificationData.eventType || 'notification',
+    userInfo: {
+      username: notificationData.username || notificationData.sender || 'System'
+    },
+    senderId: notificationData.senderId || 'system',
+    content: {
+      text: notificationData.message || notificationData.content || 'No content available'
+    },
+    timestamp: notificationData.timestamp || new Date().toISOString(),
+    status: notificationData.status || 'new',
+    payload: notificationData
+  }
+  
+  console.log('📢 Broadcasting notification:', {
+    eventType: notificationMessage.eventType,
+    sender: notificationMessage.userInfo.username,
+    content: notificationMessage.content.text.substring(0, 50) + '...'
+  })
+  
+  // Broadcast to all connected clients
+  io.emit('notification', notificationMessage)
+}
+
+// ===== HEARTBEAT MONITORING =====
+
+// Periodic heartbeat check to clean up stale connections
+setInterval(() => {
+  const now = Date.now()
+  const staleClients = []
+  
+  connectedClients.forEach((clientInfo, userId) => {
+    if (now - clientInfo.lastHeartbeat > 60000) { // 1 minute timeout
+      console.log(`⏰ Client ${userId} heartbeat timeout, marking for cleanup`)
+      staleClients.push(userId)
+    }
+  })
+  
+  // Clean up stale clients
+  staleClients.forEach(userId => {
+    const clientInfo = connectedClients.get(userId)
+    if (clientInfo && clientInfo.socket.connected) {
+      console.log(`🔌 Closing stale connection for client: ${userId}`)
+      clientInfo.socket.disconnect(true)
+    }
+    connectedClients.delete(userId)
+  })
+  
+  if (staleClients.length > 0) {
+    console.log(`🧹 Cleaned up ${staleClients.length} stale connections`)
+  }
+}, 30000) // Check every 30 seconds
+
+// ===== UTILITY FUNCTIONS =====
+
+// Function to get connection statistics
+function getConnectionStats() {
+  const totalClients = connectedClients.size
+  const authenticatedClients = Array.from(connectedClients.values()).filter(client => client.authenticated).length
+  const totalSubscriptions = Array.from(connectedClients.values()).reduce((total, client) => {
+    return total + client.subscriptions.size
+  }, 0)
+  
+  return {
+    totalClients,
+    authenticatedClients,
+    totalSubscriptions,
+    timestamp: new Date().toISOString()
+  }
+}
+
+// Function to test webhook broadcasting (for development/testing)
+function testWebhookBroadcasting() {
+  const testEvent = {
+    id: `test_${Date.now()}`,
+    eventType: 'comments',
+    sender: {
+      id: 'test_sender_123',
+      username: 'testuser'
+    },
+    content: 'This is a test comment for testing webhook broadcasting',
+    timestamp: new Date().toISOString(),
+    accountId: 'test_instagram_account'
+  }
+  
+  console.log('🧪 Testing webhook broadcasting with test event')
+  broadcastWebhookEvent(testEvent)
+}
 
 // Basic route for testing
 app.get('/', (req, res) => {
@@ -171,6 +485,102 @@ app.get('/', (req, res) => {
     clientUrl: clientUrl,
     timestamp: new Date().toISOString()
   })
+})
+
+// Test webhook broadcasting endpoint
+app.post('/api/test/webhook', (req, res) => {
+  try {
+    const { eventType, sender, content, accountId } = req.body
+    
+    const testEvent = {
+      id: `test_${Date.now()}`,
+      eventType: eventType || 'comments',
+      sender: {
+        id: sender?.id || 'test_sender_123',
+        username: sender?.username || 'testuser'
+      },
+      content: content || 'This is a test webhook event for testing the notification system',
+      timestamp: new Date().toISOString(),
+      accountId: accountId || 'test_instagram_account'
+    }
+    
+    console.log('🧪 Test webhook endpoint called:', testEvent)
+    
+    // Broadcast the test event
+    broadcastWebhookEvent(testEvent)
+    
+    res.json({
+      success: true,
+      message: 'Test webhook event broadcasted successfully',
+      event: testEvent,
+      timestamp: new Date().toISOString()
+    })
+    
+  } catch (error) {
+    console.error('❌ Test webhook error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
+// Get Socket.IO connection statistics
+app.get('/api/socket/stats', (req, res) => {
+  try {
+    const stats = getConnectionStats()
+    
+    res.json({
+      success: true,
+      data: stats,
+      message: 'Socket.IO connection statistics retrieved successfully'
+    })
+    
+  } catch (error) {
+    console.error('❌ Socket stats error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
+// Test notification broadcasting endpoint
+app.post('/api/test/notification', (req, res) => {
+  try {
+    const { message, eventType, username } = req.body
+    
+    const testNotification = {
+      id: `notif_${Date.now()}`,
+      eventType: eventType || 'notification',
+      username: username || 'System',
+      message: message || 'This is a test notification for testing the notification system',
+      timestamp: new Date().toISOString(),
+      status: 'new'
+    }
+    
+    console.log('🧪 Test notification endpoint called:', testNotification)
+    
+    // Broadcast the test notification
+    broadcastNotification(testNotification)
+    
+    res.json({
+      success: true,
+      message: 'Test notification broadcasted successfully',
+      notification: testNotification,
+      timestamp: new Date().toISOString()
+    })
+    
+  } catch (error) {
+    console.error('❌ Test notification error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
 })
 
 // Queue system health check (temporarily disabled)
