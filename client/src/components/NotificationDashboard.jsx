@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, MessageSquare, Heart, AtSign, Play, Filter, Search, MoreHorizontal, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Bell, MessageSquare, Heart, AtSign, Play, Filter, Search, MoreHorizontal, RefreshCw, Wifi, WifiOff, Instagram, Users, TrendingUp, AlertCircle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -14,6 +14,12 @@ const NotificationDashboard = () => {
   const [showAll, setShowAll] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [stats, setStats] = useState({
+    totalEvents: 0,
+    eventsToday: 0,
+    activeFlows: 0,
+    responseRate: 0
+  });
   
   const {
     notifications,
@@ -37,8 +43,28 @@ const NotificationDashboard = () => {
       }
     );
     
+    // Update stats when notifications change
+    updateStats();
+    
     return () => unsubscribe();
-  }, []);
+  }, [notifications]);
+
+  const updateStats = () => {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    const eventsToday = notifications.filter(n => new Date(n.timestamp) >= startOfDay).length;
+    const totalEvents = notifications.length;
+    const activeFlows = notifications.filter(n => n.eventType === 'flow_execution').length;
+    const responseRate = totalEvents > 0 ? Math.round((activeFlows / totalEvents) * 100) : 0;
+    
+    setStats({
+      totalEvents,
+      eventsToday,
+      activeFlows,
+      responseRate
+    });
+  };
 
   const filteredNotifications = getFilteredNotifications();
   const unreadNotifications = getUnreadNotifications();
@@ -47,13 +73,14 @@ const NotificationDashboard = () => {
   const getEventTypeIcon = (eventType) => {
     switch (eventType) {
       case 'comments': return <MessageSquare className="w-4 h-4 text-blue-600" />;
-      case 'messages': return <MessageSquare className="w-4 h-4 text-green-600" />;
       case 'mentions': return <AtSign className="w-4 h-4 text-purple-600" />;
       case 'live_comments': return <Play className="w-4 h-4 text-orange-600" />;
       case 'message_reactions': return <Heart className="w-4 h-4 text-red-600" />;
       case 'message_postbacks': return <MessageSquare className="w-4 h-4 text-indigo-600" />;
       case 'message_referrals': return <MessageSquare className="w-4 h-4 text-teal-600" />;
       case 'message_seen': return <MessageSquare className="w-4 h-4 text-gray-600" />;
+      case 'flow_execution': return <TrendingUp className="w-4 h-4 text-green-600" />;
+      case 'webhook_error': return <AlertCircle className="w-4 h-4 text-red-600" />;
       default: return <Bell className="w-4 h-4 text-gray-600" />;
     }
   };
@@ -61,13 +88,14 @@ const NotificationDashboard = () => {
   const getEventTypeColor = (eventType) => {
     switch (eventType) {
       case 'comments': return 'bg-blue-100 text-blue-800';
-      case 'messages': return 'bg-green-100 text-green-800';
       case 'mentions': return 'bg-purple-100 text-purple-800';
       case 'live_comments': return 'bg-orange-100 text-orange-800';
       case 'message_reactions': return 'bg-red-100 text-red-800';
       case 'message_postbacks': return 'bg-indigo-100 text-indigo-800';
       case 'message_referrals': return 'bg-teal-100 text-teal-800';
       case 'message_seen': return 'bg-gray-100 text-gray-800';
+      case 'flow_execution': return 'bg-green-100 text-green-800';
+      case 'webhook_error': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -86,8 +114,10 @@ const NotificationDashboard = () => {
   };
 
   const handleNotificationClick = (notification) => {
-    markAsRead(notification.id);
     setSelectedNotification(notification);
+    if (!notification.isRead) {
+      markAsRead(notification.id);
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -103,35 +133,92 @@ const NotificationDashboard = () => {
     }, 1000);
   };
 
-  const getEventTypeLabel = (eventType) => {
-    return eventType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  const getConnectionStatusIcon = () => {
-    switch (connectionStatus) {
-      case 'connected': return <Wifi className="w-4 h-4 text-green-600" />;
-      case 'connecting': return <RefreshCw className="w-4 h-4 text-yellow-600 animate-spin" />;
-      case 'disconnected': return <WifiOff className="w-4 h-4 text-red-600" />;
-      default: return <WifiOff className="w-4 h-4 text-gray-600" />;
-    }
-  };
-
   const getConnectionStatusText = () => {
     switch (connectionStatus) {
-      case 'connected': return '🟢 Live';
-      case 'connecting': return '🟡 Connecting...';
-      case 'disconnected': return '🔴 Offline';
+      case 'connected': return '🟢 Connected';
+      case 'connecting': return '🟡 Connecting';
+      case 'disconnected': return '🔴 Disconnected';
       default: return '⚪ Unknown';
     }
   };
 
+  const getEventTypeLabel = (eventType) => {
+    switch (eventType) {
+      case 'comments': return 'Comment';
+      case 'mentions': return 'Mention';
+      case 'live_comments': return 'Live Comment';
+      case 'message_reactions': return 'Reaction';
+      case 'message_postbacks': return 'Postback';
+      case 'message_referrals': return 'Referral';
+      case 'message_seen': return 'Seen';
+      case 'flow_execution': return 'Flow Executed';
+      case 'webhook_error': return 'Webhook Error';
+      default: return 'Event';
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+            <Bell className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalEvents}</div>
+            <p className="text-xs text-muted-foreground">
+              All time webhook events
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Events Today</CardTitle>
+            <Instagram className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.eventsToday}</div>
+            <p className="text-xs text-muted-foreground">
+              Instagram activity today
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Flows</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.activeFlows}</div>
+            <p className="text-xs text-muted-foreground">
+              Automation responses
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.responseRate}%</div>
+            <p className="text-xs text-muted-foreground">
+              Automated responses
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Bell className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold">Recent Notifications</h3>
+          <h3 className="text-lg font-semibold">Instagram Webhook Events</h3>
           {unreadCount > 0 && (
             <Badge variant="destructive" className="ml-2">
               {unreadCount} new
@@ -157,7 +244,6 @@ const NotificationDashboard = () => {
             onClick={handleMarkAllRead}
             disabled={unreadCount === 0}
           >
-            <RefreshCw className="w-4 h-4 mr-1" />
             Mark All Read
           </Button>
         </div>
@@ -167,30 +253,33 @@ const NotificationDashboard = () => {
       <div className="bg-gray-50 rounded-lg p-4 border">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {getConnectionStatusIcon()}
+            {connectionStatus === 'connected' ? (
+              <Wifi className="w-5 h-5 text-green-600" />
+            ) : (
+              <WifiOff className="w-5 h-5 text-red-600" />
+            )}
             <div>
-              <p className="text-sm font-medium text-gray-900">
-                Socket.IO Connection Status
-              </p>
-              <p className="text-xs text-gray-500">
-                {socketIOService.getBackendUrl()}
+              <h4 className="font-medium text-gray-900">
+                {connectionStatus === 'connected' ? 'Connected to Instagram' : 'Not Connected'}
+              </h4>
+              <p className="text-sm text-gray-600">
+                {connectionStatus === 'connected' 
+                  ? 'Receiving real-time webhook events from Instagram' 
+                  : 'Connect your Instagram account to receive notifications'
+                }
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500">Status</p>
-            <p className={`text-sm font-medium ${
-              connectionStatus === 'connected' ? 'text-green-600' : 
-              connectionStatus === 'connecting' ? 'text-yellow-600' : 'text-red-600'
-            }`}>
-              {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
-            </p>
-            {connectionStatus === 'connected' && (
-              <p className="text-xs text-gray-500 mt-1">
-                ID: {socketIOService.getSocketInfo()?.id || 'Unknown'}
-              </p>
-            )}
-          </div>
+          {connectionStatus !== 'connected' && (
+            <Button
+              size="sm"
+              onClick={() => window.location.href = '/connect-instagram'}
+              className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
+            >
+              <Instagram className="w-4 h-4 mr-2" />
+              Connect Instagram
+            </Button>
+          )}
         </div>
       </div>
 
@@ -206,15 +295,16 @@ const NotificationDashboard = () => {
           <SelectContent>
             <SelectItem value="all">All Event Types</SelectItem>
             <SelectItem value="comments">Comments</SelectItem>
-            <SelectItem value="messages">Messages</SelectItem>
             <SelectItem value="mentions">Mentions</SelectItem>
             <SelectItem value="live_comments">Live Comments</SelectItem>
             <SelectItem value="message_reactions">Reactions</SelectItem>
+            <SelectItem value="flow_execution">Flow Execution</SelectItem>
+            <SelectItem value="webhook_error">Webhook Errors</SelectItem>
           </SelectContent>
         </Select>
 
         <Input
-          placeholder="Search notifications..."
+          placeholder="Search events..."
           value={filters.search}
           onChange={(e) => setFilters({ search: e.target.value })}
           className="h-9"
@@ -236,16 +326,16 @@ const NotificationDashboard = () => {
           {isLoading ? (
             <div className="p-8 text-center text-gray-500">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p>Loading notifications...</p>
+              <p>Loading webhook events...</p>
             </div>
           ) : displayNotifications.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="font-medium">No notifications</p>
+              <p className="font-medium">No webhook events</p>
               <p className="text-sm">
                 {connectionStatus === 'connected' 
-                  ? 'New webhook events will appear here' 
-                  : 'Connect to receive notifications'
+                  ? 'New Instagram events will appear here' 
+                  : 'Connect Instagram to receive webhook events'
                 }
               </p>
             </div>
@@ -267,7 +357,7 @@ const NotificationDashboard = () => {
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center space-x-2">
                           <p className="text-sm font-medium text-gray-900 truncate">
-                            {notification.userInfo?.username || notification.senderId || 'Unknown User'}
+                            {notification.userInfo?.username || notification.senderId || 'Instagram User'}
                           </p>
                           <Badge className={getEventTypeColor(notification.eventType)}>
                             {getEventTypeLabel(notification.eventType)}
@@ -284,12 +374,18 @@ const NotificationDashboard = () => {
                       </div>
                       
                       <p className="text-sm text-gray-600 line-clamp-2">
-                        {notification.content?.text || 'No content available'}
+                        {notification.content?.text || notification.message || 'No content available'}
                       </p>
                       
                       {notification.processingError && (
                         <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-                          <strong>Error:</strong> {notification.processingError}
+                          <strong>Processing Error:</strong> {notification.processingError}
+                        </div>
+                      )}
+                      
+                      {notification.flowResponse && (
+                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                          <strong>Automated Response:</strong> {notification.flowResponse}
                         </div>
                       )}
                     </div>
@@ -301,86 +397,65 @@ const NotificationDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Show More/Less Button */}
-      {filteredNotifications.length > 5 && (
-        <div className="text-center">
-          <Button
-            variant="outline"
-            onClick={() => setShowAll(!showAll)}
-            className="w-full"
-          >
-            {showAll ? 'Show Less' : `Show All (${filteredNotifications.length})`}
-          </Button>
-        </div>
-      )}
-
       {/* Notification Details Modal */}
       {selectedNotification && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                {getEventTypeIcon(selectedNotification.eventType)}
-                <h3 className="text-lg font-semibold">Notification Details</h3>
-              </div>
+              <h3 className="text-lg font-semibold">Event Details</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedNotification(null)}
               >
-                ✕
+                <MoreHorizontal className="w-4 h-4" />
               </Button>
             </div>
-
+            
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Event Type</label>
-                  <p className="text-sm text-gray-900">
-                    {getEventTypeLabel(selectedNotification.eventType)}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Status</label>
-                  <Badge className={selectedNotification.isRead ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'}>
-                    {selectedNotification.isRead ? 'Read' : 'New'}
-                  </Badge>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Sender</label>
-                  <p className="text-sm text-gray-900">
-                    {selectedNotification.userInfo?.username || selectedNotification.senderId || 'Unknown'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Timestamp</label>
-                  <p className="text-sm text-gray-900">
-                    {new Date(selectedNotification.timestamp).toLocaleString()}
-                  </p>
-                </div>
+              <div className="flex items-center space-x-2">
+                {getEventTypeIcon(selectedNotification.eventType)}
+                <Badge className={getEventTypeColor(selectedNotification.eventType)}>
+                  {getEventTypeLabel(selectedNotification.eventType)}
+                </Badge>
               </div>
-
-              <Separator />
-
+              
               <div>
-                <label className="text-sm font-medium text-gray-700">Content</label>
-                <div className="mt-1 p-3 bg-gray-50 rounded border">
-                  <p className="text-sm text-gray-900">
-                    {selectedNotification.content?.text || 'No content available'}
-                  </p>
-                </div>
+                <h4 className="font-medium text-gray-900">User</h4>
+                <p className="text-sm text-gray-600">
+                  {selectedNotification.userInfo?.username || selectedNotification.senderId || 'Unknown'}
+                </p>
               </div>
-
+              
               <div>
-                <label className="text-sm font-medium text-gray-700">Full Payload</label>
-                <div className="mt-1 p-3 bg-gray-900 rounded border overflow-x-auto">
-                  <pre className="text-xs text-green-400">
-                    {JSON.stringify(selectedNotification.payload || selectedNotification, null, 2)}
-                  </pre>
-                </div>
+                <h4 className="font-medium text-gray-900">Content</h4>
+                <p className="text-sm text-gray-600">
+                  {selectedNotification.content?.text || selectedNotification.message || 'No content'}
+                </p>
               </div>
+              
+              <div>
+                <h4 className="font-medium text-gray-900">Timestamp</h4>
+                <p className="text-sm text-gray-600">
+                  {new Date(selectedNotification.timestamp).toLocaleString()}
+                </p>
+              </div>
+              
+              {selectedNotification.processingError && (
+                <div>
+                  <h4 className="font-medium text-red-900">Processing Error</h4>
+                  <p className="text-sm text-red-700">{selectedNotification.processingError}</p>
+                </div>
+              )}
+              
+              {selectedNotification.flowResponse && (
+                <div>
+                  <h4 className="font-medium text-green-900">Automated Response</h4>
+                  <p className="text-sm text-green-700">{selectedNotification.flowResponse}</p>
+                </div>
+              )}
             </div>
-
+            
             <div className="flex justify-end space-x-2 mt-6">
               <Button
                 variant="outline"
@@ -388,15 +463,16 @@ const NotificationDashboard = () => {
               >
                 Close
               </Button>
-              <Button
-                onClick={() => {
-                  markAsRead(selectedNotification.id);
-                  setSelectedNotification(null);
-                }}
-                disabled={selectedNotification.isRead}
-              >
-                Mark as Read
-              </Button>
+              {!selectedNotification.isRead && (
+                <Button
+                  onClick={() => {
+                    markAsRead(selectedNotification.id);
+                    setSelectedNotification(null);
+                  }}
+                >
+                  Mark as Read
+                </Button>
+              )}
             </div>
           </div>
         </div>

@@ -83,8 +83,8 @@ InstantChat now uses **real JWT authentication** with secure user management:
 1. **User Registration** - Create secure accounts
 2. **User Login** - Authenticate with JWT tokens
 3. **Instagram Integration** - Connect with real authentication
-4. **Real-time Chat** - Send messages with user context
-5. **Message History** - Load conversations for authenticated users
+4. **Webhook Notifications** - Monitor Instagram events in real-time
+5. **Automation Flows** - Build and test automated responses
 6. **Responsive Design** - Works on desktop and mobile
 
 ## 🐛 Troubleshooting
@@ -114,9 +114,51 @@ taskkill /PID <PID> /F
 - Verify user authentication before connecting
 - Check Instagram app permissions and webhook setup
 
+**Webhook notifications not working:**
+- Verify Instagram webhook configuration
+- Check webhook endpoint accessibility
+- Ensure proper event subscription setup
+
 ## 🔒 Security Notes
 
 - **JWT_SECRET** should be a strong, unique key
 - **MongoDB** should use SSL connections in production
 - **Environment variables** should never be committed to version control
 - **User passwords** are automatically hashed and never stored in plain text
+
+## 📊 What You'll See
+
+### **Dashboard Overview**
+- **Notifications Tab** - Primary focus on Instagram webhook events
+- **Instagram Tab** - Connection management and analytics
+- **Flows Tab** - Automation workflow builder
+- **Automation Tab** - Dashboard for monitoring automated responses
+- **Webhooks Tab** - Webhook configuration and testing
+- **Settings Tab** - User account management
+
+### **Key Features**
+- **Real-time webhook monitoring** for Instagram events
+- **Event categorization** (comments, mentions, reactions, etc.)
+- **Automation flow execution** tracking
+- **Business intelligence** dashboard with statistics
+- **Webhook health monitoring** and status
+
+## 🎯 Next Steps
+
+After successful installation:
+1. **Test the authentication system** with user registration/login
+2. **Connect Instagram** via OAuth to enable webhooks
+3. **Monitor webhook events** in the notifications dashboard
+4. **Build automation flows** to respond to Instagram activity
+5. **Test webhook processing** with real Instagram events
+
+## 📚 Additional Resources
+
+- **README.md** - Comprehensive project documentation
+- **API_DOCUMENTATION.md** - Complete API reference
+- **Code comments** - Inline documentation throughout the codebase
+- **Webhook setup guide** - Instagram webhook configuration
+
+---
+
+**Need help?** Check the troubleshooting section or create an issue in the repository.
