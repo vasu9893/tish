@@ -1,319 +1,320 @@
-# 🔌 WebSocket Backend Integration Guide
+# 🔌 Socket.IO Backend Integration Guide
 
 ## Overview
 
-This document outlines how to implement the WebSocket backend endpoint for the InstantChat notification system. The frontend is now configured to connect to a real WebSocket server instead of mock mode.
+This document outlines how to integrate the InstantChat notification system with your existing Socket.IO server. The frontend is now configured to connect to Socket.IO instead of raw WebSocket.
 
 ## Backend Requirements
 
-### **WebSocket Endpoint**
-- **Path**: `/ws/notifications`
-- **Protocol**: WebSocket (WS/WSS)
+### **Socket.IO Endpoint**
+- **Path**: `/socket.io` (default Socket.IO path)
+- **Protocol**: Socket.IO (handles WS/WSS automatically)
 - **Authentication**: JWT token validation
-- **Message Format**: JSON
+- **Message Format**: JSON events
 
 ### **Connection Flow**
 
-1. **Client Connection**: Frontend connects to `/ws/notifications`
-2. **Authentication**: Client sends JWT token immediately after connection
-3. **Subscription**: Client subscribes to specific Instagram webhook events
-4. **Real-time Updates**: Server pushes webhook events as they arrive
+1. **Client Connection**: Frontend connects to Socket.IO server
+2. **Authentication**: Client emits `authenticate` event with JWT token
+3. **Subscription**: Client emits `subscribe` event for Instagram webhook events
+4. **Real-time Updates**: Server emits events as webhooks arrive
 
-## Message Types
+## Event Types
 
-### **Client → Server Messages**
+### **Client → Server Events**
 
 #### **Authentication**
-```json
-{
-  "type": "authenticate",
-  "token": "jwt_token_here",
-  "userId": "user_id_here",
-  "timestamp": 1640995200000
-}
+```javascript
+// Client emits
+socket.emit('authenticate', {
+  token: 'jwt_token_here',
+  userId: 'user_id_here',
+  timestamp: Date.now()
+});
 ```
 
 #### **Subscribe to Events**
-```json
-{
-  "type": "subscribe",
-  "eventTypes": ["comments", "messages", "mentions", "live_comments"],
-  "userId": "user_id_here",
-  "timestamp": 1640995200000
-}
+```javascript
+// Client emits
+socket.emit('subscribe', {
+  eventTypes: ['comments', 'messages', 'mentions', 'live_comments'],
+  userId: 'user_id_here',
+  timestamp: Date.now()
+});
 ```
 
 #### **Unsubscribe from Events**
-```json
-{
-  "type": "unsubscribe",
-  "eventTypes": ["comments"],
-  "userId": "user_id_here",
-  "timestamp": 1640995200000
-}
+```javascript
+// Client emits
+socket.emit('unsubscribe', {
+  eventTypes: ['comments'],
+  userId: 'user_id_here',
+  timestamp: Date.now()
+});
 ```
 
 #### **Get Subscriptions**
-```json
-{
-  "type": "get_subscriptions",
-  "userId": "user_id_here",
-  "timestamp": 1640995200000
-}
+```javascript
+// Client emits
+socket.emit('get_subscriptions', {
+  userId: 'user_id_here',
+  timestamp: Date.now()
+});
 ```
 
 #### **Test Connection**
-```json
-{
-  "type": "test_connection",
-  "userId": "user_id_here",
-  "timestamp": 1640995200000
-}
+```javascript
+// Client emits
+socket.emit('test_connection', {
+  userId: 'user_id_here',
+  timestamp: Date.now()
+});
 ```
 
 #### **Heartbeat**
-```json
-{
-  "type": "heartbeat",
-  "timestamp": 1640995200000,
-  "clientId": "instantchat-frontend"
-}
+```javascript
+// Client emits
+socket.emit('heartbeat', {
+  timestamp: Date.now(),
+  clientId: 'instantchat-frontend'
+});
 ```
 
-### **Server → Client Messages**
+### **Server → Client Events**
 
 #### **Authentication Response**
-```json
-{
-  "type": "auth_success",
-  "message": "Authentication successful",
-  "userId": "user_id_here",
-  "timestamp": 1640995200000
-}
+```javascript
+// Server emits
+socket.emit('auth_success', {
+  message: 'Authentication successful',
+  userId: 'user_id_here',
+  timestamp: Date.now()
+});
 ```
 
 #### **Authentication Failed**
-```json
-{
-  "type": "auth_failed",
-  "reason": "Invalid token",
-  "timestamp": 1640995200000
-}
+```javascript
+// Server emits
+socket.emit('auth_failed', {
+  reason: 'Invalid token',
+  timestamp: Date.now()
+});
 ```
 
 #### **Webhook Event**
-```json
-{
-  "type": "webhook_event",
-  "payload": {
-    "id": "event_123",
-    "eventType": "comments",
-    "sender": {
-      "id": "sender_id",
-      "username": "user123"
-    },
-    "content": "Great post!",
-    "timestamp": "2024-01-01T12:00:00Z",
-    "accountId": "instagram_account_id"
-  }
-}
+```javascript
+// Server emits
+socket.emit('webhook_event', {
+  id: 'event_123',
+  eventType: 'comments',
+  sender: {
+    id: 'sender_id',
+    username: 'user123'
+  },
+  content: 'Great post!',
+  timestamp: '2024-01-01T12:00:00Z',
+  accountId: 'instagram_account_id'
+});
 ```
 
 #### **Heartbeat Response**
-```json
-{
-  "type": "heartbeat_response",
-  "timestamp": 1640995200000,
-  "serverTime": "2024-01-01T12:00:00Z"
-}
+```javascript
+// Server emits
+socket.emit('heartbeat_response', {
+  timestamp: Date.now(),
+  serverTime: new Date().toISOString()
+});
+```
+
+#### **Subscription Confirmed**
+```javascript
+// Server emits
+socket.emit('subscription_confirmed', {
+  eventTypes: ['comments', 'messages'],
+  timestamp: Date.now()
+});
 ```
 
 #### **Connection Info**
-```json
-{
-  "type": "connection_info",
-  "status": "connected",
-  "subscriptions": ["comments", "messages"],
-  "timestamp": 1640995200000
-}
-```
-
-## Backend Implementation (Node.js/Express)
-
-### **1. Install WebSocket Dependencies**
-```bash
-npm install ws jsonwebtoken
-```
-
-### **2. WebSocket Server Setup**
 ```javascript
-const WebSocket = require('ws');
+// Server emits
+socket.emit('connection_info', {
+  status: 'connected',
+  subscriptions: ['comments', 'messages'],
+  timestamp: Date.now()
+});
+```
+
+## Backend Implementation (Node.js/Express + Socket.IO)
+
+### **1. Install Socket.IO Dependencies**
+```bash
+npm install socket.io jsonwebtoken
+```
+
+### **2. Socket.IO Server Setup**
+```javascript
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
-// Create WebSocket server
-const wss = new WebSocket.Server({ 
-  port: process.env.WS_PORT || 8080,
-  path: '/ws/notifications'
+const app = express();
+const server = http.createServer(app);
+
+// Create Socket.IO server
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    methods: ["GET", "POST"]
+  },
+  path: '/socket.io'
 });
 
 // Store connected clients
 const clients = new Map();
 
-// WebSocket connection handler
-wss.on('connection', (ws, req) => {
-  console.log('🔌 New WebSocket connection');
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log('🔌 New Socket.IO connection:', socket.id);
   
   let clientInfo = {
-    ws,
+    socket,
     userId: null,
     authenticated: false,
     subscriptions: new Set(),
     lastHeartbeat: Date.now()
   };
   
-  // Handle incoming messages
-  ws.on('message', (data) => {
-    try {
-      const message = JSON.parse(data);
-      handleMessage(ws, message, clientInfo);
-    } catch (error) {
-      console.error('❌ Failed to parse message:', error);
-    }
+  // Handle authentication
+  socket.on('authenticate', (data) => {
+    handleAuthentication(socket, data, clientInfo);
   });
   
-  // Handle client disconnect
-  ws.on('close', () => {
-    console.log('🔌 Client disconnected:', clientInfo.userId);
+  // Handle subscription
+  socket.on('subscribe', (data) => {
+    handleSubscription(socket, data, clientInfo);
+  });
+  
+  // Handle unsubscription
+  socket.on('unsubscribe', (data) => {
+    handleUnsubscription(socket, data, clientInfo);
+  });
+  
+  // Handle get subscriptions
+  socket.on('get_subscriptions', (data) => {
+    handleGetSubscriptions(socket, clientInfo);
+  });
+  
+  // Handle test connection
+  socket.on('test_connection', (data) => {
+    handleTestConnection(socket, clientInfo);
+  });
+  
+  // Handle heartbeat
+  socket.on('heartbeat', (data) => {
+    handleHeartbeat(socket, data, clientInfo);
+  });
+  
+  // Handle disconnect
+  socket.on('disconnect', (reason) => {
+    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
     if (clientInfo.userId) {
       clients.delete(clientInfo.userId);
     }
   });
   
   // Handle errors
-  ws.on('error', (error) => {
-    console.error('❌ WebSocket error:', error);
+  socket.on('error', (error) => {
+    console.error('❌ Socket.IO error:', error);
   });
 });
 ```
 
-### **3. Message Handler**
+### **3. Authentication Handler**
 ```javascript
-function handleMessage(ws, message, clientInfo) {
-  console.log('📨 Received message:', message.type);
-  
-  switch (message.type) {
-    case 'authenticate':
-      handleAuthentication(ws, message, clientInfo);
-      break;
-      
-    case 'subscribe':
-      handleSubscription(ws, message, clientInfo);
-      break;
-      
-    case 'unsubscribe':
-      handleUnsubscription(ws, message, clientInfo);
-      break;
-      
-    case 'get_subscriptions':
-      handleGetSubscriptions(ws, clientInfo);
-      break;
-      
-    case 'test_connection':
-      handleTestConnection(ws, clientInfo);
-      break;
-      
-    case 'heartbeat':
-      handleHeartbeat(ws, message, clientInfo);
-      break;
-      
-    default:
-      console.log('📨 Unknown message type:', message.type);
-  }
-}
-```
-
-### **4. Authentication Handler**
-```javascript
-function handleAuthentication(ws, message, clientInfo) {
+function handleAuthentication(socket, data, clientInfo) {
   try {
-    const decoded = jwt.verify(message.token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(data.token, process.env.JWT_SECRET);
     
-    if (decoded.userId === message.userId) {
-      clientInfo.userId = message.userId;
+    if (decoded.userId === data.userId) {
+      clientInfo.userId = data.userId;
       clientInfo.authenticated = true;
-      clients.set(message.userId, clientInfo);
+      clients.set(data.userId, clientInfo);
       
       // Send success response
-      ws.send(JSON.stringify({
-        type: 'auth_success',
+      socket.emit('auth_success', {
         message: 'Authentication successful',
-        userId: message.userId,
+        userId: data.userId,
         timestamp: Date.now()
-      }));
+      });
       
-      console.log('✅ Client authenticated:', message.userId);
+      console.log('✅ Client authenticated:', data.userId, 'Socket:', socket.id);
     } else {
       throw new Error('User ID mismatch');
     }
   } catch (error) {
     console.error('❌ Authentication failed:', error.message);
     
-    ws.send(JSON.stringify({
-      type: 'auth_failed',
+    socket.emit('auth_failed', {
       reason: 'Invalid token',
       timestamp: Date.now()
-    }));
+    });
     
-    ws.close(1008, 'Authentication failed');
+    socket.disconnect(true);
   }
 }
 ```
 
-### **5. Subscription Handler**
+### **4. Subscription Handler**
 ```javascript
-function handleSubscription(ws, message, clientInfo) {
+function handleSubscription(socket, data, clientInfo) {
   if (!clientInfo.authenticated) {
-    ws.send(JSON.stringify({
-      type: 'error',
+    socket.emit('error', {
       message: 'Not authenticated',
       timestamp: Date.now()
-    }));
+    });
     return;
   }
   
   // Add event types to subscriptions
-  message.eventTypes.forEach(eventType => {
+  data.eventTypes.forEach(eventType => {
     clientInfo.subscriptions.add(eventType);
   });
   
   console.log('📝 Client subscribed to:', Array.from(clientInfo.subscriptions));
   
   // Send confirmation
-  ws.send(JSON.stringify({
-    type: 'subscription_confirmed',
+  socket.emit('subscription_confirmed', {
     eventTypes: Array.from(clientInfo.subscriptions),
     timestamp: Date.now()
-  }));
+  });
 }
 ```
 
-### **6. Webhook Event Broadcasting**
+### **5. Webhook Event Broadcasting**
 ```javascript
 // Function to broadcast webhook events to subscribed clients
 function broadcastWebhookEvent(eventData) {
   const eventMessage = {
-    type: 'webhook_event',
-    payload: eventData,
-    timestamp: Date.now()
+    id: eventData.id,
+    eventType: eventData.eventType,
+    sender: {
+      id: eventData.sender?.id,
+      username: eventData.sender?.username
+    },
+    content: eventData.message?.text || eventData.comment?.text,
+    timestamp: eventData.timestamp,
+    accountId: eventData.accountId
   };
   
   clients.forEach((clientInfo, userId) => {
     if (clientInfo.authenticated && 
         clientInfo.subscriptions.has(eventData.eventType) &&
-        clientInfo.ws.readyState === WebSocket.OPEN) {
+        clientInfo.socket.connected) {
       
       try {
-        clientInfo.ws.send(JSON.stringify(eventMessage));
+        clientInfo.socket.emit('webhook_event', eventMessage);
         console.log(`📤 Sent webhook event to client: ${userId}`);
       } catch (error) {
         console.error(`❌ Failed to send to client ${userId}:`, error);
@@ -323,17 +324,16 @@ function broadcastWebhookEvent(eventData) {
 }
 ```
 
-### **7. Heartbeat Handler**
+### **6. Heartbeat Handler**
 ```javascript
-function handleHeartbeat(ws, message, clientInfo) {
+function handleHeartbeat(socket, data, clientInfo) {
   clientInfo.lastHeartbeat = Date.now();
   
   // Send heartbeat response
-  ws.send(JSON.stringify({
-    type: 'heartbeat_response',
+  socket.emit('heartbeat_response', {
     timestamp: Date.now(),
     serverTime: new Date().toISOString()
-  }));
+  });
 }
 
 // Periodic heartbeat check
@@ -342,7 +342,7 @@ setInterval(() => {
   clients.forEach((clientInfo, userId) => {
     if (now - clientInfo.lastHeartbeat > 60000) { // 1 minute timeout
       console.log(`⏰ Client ${userId} heartbeat timeout, closing connection`);
-      clientInfo.ws.close(1000, 'Heartbeat timeout');
+      clientInfo.socket.disconnect(true);
       clients.delete(userId);
     }
   });
@@ -365,7 +365,7 @@ app.post('/api/webhooks/instagram', (req, res) => {
   // Process webhook data
   processWebhookEvent(webhookData);
   
-  // Broadcast to WebSocket clients
+  // Broadcast to Socket.IO clients
   broadcastWebhookEvent({
     id: webhookData.id,
     eventType: webhookData.eventType,
@@ -396,9 +396,12 @@ function processWebhookEvent(webhookData) {
 ## Environment Variables
 
 ```bash
-# WebSocket Configuration
-WS_PORT=8080
+# Socket.IO Configuration
+PORT=3000
 JWT_SECRET=your_jwt_secret_here
+
+# Client Configuration
+CLIENT_URL=http://localhost:3000
 
 # Instagram Webhook Configuration
 INSTAGRAM_WEBHOOK_VERIFY_TOKEN=your_verify_token
@@ -407,63 +410,96 @@ INSTAGRAM_APP_SECRET=your_app_secret
 
 ## Testing
 
-### **1. Test WebSocket Connection**
+### **1. Test Socket.IO Connection**
 ```bash
-# Using wscat
-npm install -g wscat
-wscat -c ws://localhost:8080/ws/notifications
+# Using socket.io-client in Node.js
+npm install socket.io-client
 ```
 
-### **2. Send Test Message**
-```json
-{
-  "type": "authenticate",
-  "token": "your_jwt_token",
-  "userId": "test_user",
-  "timestamp": 1640995200000
-}
+```javascript
+const { io } = require('socket.io-client');
+
+const socket = io('http://localhost:3000');
+
+socket.on('connect', () => {
+  console.log('Connected to Socket.IO server');
+  
+  // Test authentication
+  socket.emit('authenticate', {
+    token: 'your_jwt_token',
+    userId: 'test_user',
+    timestamp: Date.now()
+  });
+});
+
+socket.on('auth_success', (data) => {
+  console.log('Authentication successful:', data);
+  
+  // Test subscription
+  socket.emit('subscribe', {
+    eventTypes: ['comments', 'messages'],
+    userId: 'test_user',
+    timestamp: Date.now()
+  });
+});
+
+socket.on('webhook_event', (data) => {
+  console.log('Webhook event received:', data);
+});
 ```
 
-### **3. Subscribe to Events**
-```json
-{
-  "type": "subscribe",
-  "eventTypes": ["comments", "messages"],
-  "userId": "test_user",
-  "timestamp": 1640995200000
-}
+### **2. Test Webhook Broadcasting**
+```javascript
+// In your backend, test broadcasting
+setTimeout(() => {
+  broadcastWebhookEvent({
+    id: 'test_123',
+    eventType: 'comments',
+    sender: {
+      id: 'sender_123',
+      username: 'testuser'
+    },
+    content: 'This is a test comment',
+    timestamp: new Date().toISOString(),
+    accountId: 'instagram_123'
+  });
+}, 5000);
 ```
 
 ## Security Considerations
 
 1. **JWT Validation**: Verify tokens on every connection
 2. **Rate Limiting**: Prevent spam connections
-3. **Input Validation**: Sanitize all incoming messages
+3. **Input Validation**: Sanitize all incoming data
 4. **Connection Limits**: Limit concurrent connections per user
 5. **Heartbeat Monitoring**: Detect and close stale connections
+6. **CORS Configuration**: Restrict origins to trusted domains
 
 ## Performance Optimization
 
-1. **Connection Pooling**: Reuse WebSocket connections
-2. **Message Batching**: Batch multiple events when possible
+1. **Connection Pooling**: Reuse Socket.IO connections
+2. **Event Batching**: Batch multiple events when possible
 3. **Selective Broadcasting**: Only send to subscribed clients
 4. **Memory Management**: Clean up disconnected clients promptly
+5. **Redis Adapter**: Use Redis for horizontal scaling
 
 ## Monitoring
 
 1. **Connection Counts**: Track active connections
-2. **Message Rates**: Monitor message throughput
+2. **Event Rates**: Monitor event throughput
 3. **Error Rates**: Track authentication and processing errors
-4. **Latency**: Measure message delivery times
+4. **Latency**: Measure event delivery times
+5. **Memory Usage**: Monitor server memory consumption
 
 ## Troubleshooting
 
 ### **Common Issues**
 
-1. **Connection Refused**: Check WebSocket server is running
+1. **Connection Refused**: Check Socket.IO server is running
 2. **Authentication Failed**: Verify JWT token and secret
-3. **No Events Received**: Check webhook subscriptions
+3. **No Events Received**: Check event subscriptions
 4. **High Memory Usage**: Monitor client cleanup
+5. **CORS Errors**: Check CORS configuration
 
 ### **Debug Commands**
 ```javascript
@@ -474,14 +510,31 @@ console.log('Connected clients:', Array.from(clients.keys()));
 clients.forEach((clientInfo, userId) => {
   console.log(`Client ${userId}:`, Array.from(clientInfo.subscriptions));
 });
+
+// Log Socket.IO server info
+console.log('Socket.IO server info:', {
+  engine: io.engine.clientsCount,
+  sockets: io.sockets.sockets.size
+});
 ```
 
 ## Next Steps
 
-1. **Implement Backend**: Use the code examples above
-2. **Test Connection**: Verify WebSocket connectivity
+1. **Integrate with Existing Server**: Add Socket.IO to your current Express server
+2. **Test Connection**: Verify Socket.IO connectivity
 3. **Configure Webhooks**: Set up Instagram webhook endpoints
 4. **Monitor Performance**: Track system metrics
-5. **Scale Up**: Add load balancing if needed
+5. **Scale Up**: Add Redis adapter for horizontal scaling
 
-The frontend is now ready to receive real-time notifications from your backend WebSocket server! 🚀
+## Frontend Integration
+
+The frontend is now fully configured to work with Socket.IO:
+
+- ✅ **Socket.IO Client**: Uses `socket.io-client` library
+- ✅ **Event Handling**: Listens for Socket.IO events
+- ✅ **Authentication**: Sends JWT token via `authenticate` event
+- ✅ **Subscription**: Subscribes to webhook events
+- ✅ **Real-time Updates**: Receives instant notifications
+- ✅ **Connection Management**: Handles reconnection automatically
+
+The frontend will automatically connect to your Socket.IO server and start receiving real-time Instagram webhook notifications! 🚀

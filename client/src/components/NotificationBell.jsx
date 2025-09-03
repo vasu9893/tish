@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import useNotificationStore from '../stores/notificationStore';
-import websocketService from '../services/websocketService';
+import socketIOService from '../services/websocketService';
 import { toast } from 'sonner';
 
 const NotificationBell = () => {
@@ -34,8 +34,8 @@ const NotificationBell = () => {
     // Load initial notifications
     loadNotifications();
     
-    // Setup WebSocket connection
-    setupWebSocket();
+    // Setup Socket.IO connection
+    setupSocketIO();
     
     // Listen for connection status changes
     const unsubscribe = useNotificationStore.subscribe(
@@ -47,7 +47,7 @@ const NotificationBell = () => {
     
     return () => {
       unsubscribe();
-      websocketService.disconnect();
+      socketIOService.disconnect();
     };
   }, []);
 
@@ -63,14 +63,14 @@ const NotificationBell = () => {
     }
   };
 
-  const setupWebSocket = () => {
+  const setupSocketIO = () => {
     try {
-      // Connect to WebSocket
-      websocketService.connect();
+      // Connect to Socket.IO
+      socketIOService.connect();
       
       // Subscribe to Instagram webhook events
       setTimeout(() => {
-        websocketService.subscribeToEvents([
+        socketIOService.subscribeToEvents([
           'comments',
           'messages', 
           'mentions',
@@ -83,15 +83,15 @@ const NotificationBell = () => {
       }, 2000); // Wait for connection to establish
       
     } catch (error) {
-      console.error('Failed to setup WebSocket:', error);
+      console.error('Failed to setup Socket.IO:', error);
       toast.error('Failed to connect to notification service');
     }
   };
 
   const handleReconnect = () => {
-    websocketService.disconnect();
+    socketIOService.disconnect();
     setTimeout(() => {
-      setupWebSocket();
+      setupSocketIO();
       toast.info('Reconnecting to notification service...');
     }, 1000);
   };
@@ -201,7 +201,7 @@ const NotificationBell = () => {
             <div className="flex items-center space-x-2 mb-3">
               <div className="flex items-center space-x-2 text-xs text-gray-600">
                 {getConnectionStatusIcon()}
-                <span>WebSocket: {websocketService.getBackendUrl()}</span>
+                <span>Socket.IO: {socketIOService.getBackendUrl()}</span>
               </div>
               <Button
                 size="sm"
@@ -209,10 +209,17 @@ const NotificationBell = () => {
                 onClick={handleReconnect}
                 disabled={connectionStatus === 'connecting'}
               >
-                <RefreshCw className="w-4 h-4 mr-1" />
+                <RefreshCw className="h-4 h-4 mr-1" />
                 Reconnect
               </Button>
             </div>
+
+            {/* Socket.IO Info */}
+            {connectionStatus === 'connected' && (
+              <div className="text-xs text-gray-500 mb-3">
+                Socket ID: {socketIOService.getSocketInfo()?.id || 'Unknown'}
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center space-x-2 mb-3">

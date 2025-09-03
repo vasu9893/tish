@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import useNotificationStore from '../stores/notificationStore';
-import websocketService from '../services/websocketService';
+import socketIOService from '../services/websocketService';
 import { toast } from 'sonner';
 
 const NotificationDashboard = () => {
@@ -96,9 +96,9 @@ const NotificationDashboard = () => {
   };
 
   const handleReconnect = () => {
-    websocketService.disconnect();
+    socketIOService.disconnect();
     setTimeout(() => {
-      websocketService.connect();
+      socketIOService.connect();
       toast.info('Reconnecting to notification service...');
     }, 1000);
   };
@@ -170,10 +170,10 @@ const NotificationDashboard = () => {
             {getConnectionStatusIcon()}
             <div>
               <p className="text-sm font-medium text-gray-900">
-                WebSocket Connection Status
+                Socket.IO Connection Status
               </p>
               <p className="text-xs text-gray-500">
-                {websocketService.getBackendUrl()}
+                {socketIOService.getBackendUrl()}
               </p>
             </div>
           </div>
@@ -185,6 +185,11 @@ const NotificationDashboard = () => {
             }`}>
               {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
             </p>
+            {connectionStatus === 'connected' && (
+              <p className="text-xs text-gray-500 mt-1">
+                ID: {socketIOService.getSocketInfo()?.id || 'Unknown'}
+              </p>
+            )}
           </div>
         </div>
       </div>

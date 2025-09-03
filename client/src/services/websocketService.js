@@ -1,6 +1,7 @@
 import useNotificationStore from '../stores/notificationStore';
+import { io } from 'socket.io-client';
 
-class WebSocketService {
+class SocketIOService {
   constructor() {
     this.socket = null;
     this.reconnectAttempts = 0;
@@ -13,7 +14,7 @@ class WebSocketService {
   }
 
   connect(url = null) {
-    if (this.isConnecting || this.socket?.readyState === WebSocket.OPEN) {
+    if (this.isConnecting || this.socket?.connected) {
       return;
     }
 
@@ -26,23 +27,34 @@ class WebSocketService {
       // Get backend URL from environment or construct from current location
       const envBackendUrl = import.meta.env.VITE_API_URL;
       if (envBackendUrl) {
-        // Convert HTTP/HTTPS to WS/WSS
-        this.backendUrl = envBackendUrl.replace(/^http/, 'ws') + '/ws/notifications';
+        // Use the same URL for Socket.IO (it will handle WS/WSS automatically)
+        this.backendUrl = envBackendUrl;
       } else {
-        // Fallback to current host with WebSocket path
-        this.backendUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/notifications`;
+        // Fallback to current host
+        this.backendUrl = window.location.origin;
       }
     }
     
     try {
-      console.log('🔌 Connecting to WebSocket:', this.backendUrl);
-      this.socket = new WebSocket(this.backendUrl);
+      console.log('🔌 Connecting to Socket.IO:', this.backendUrl);
+      
+      // Create Socket.IO connection with configuration
+      this.socket = io(this.backendUrl, {
+        path: '/socket.io',
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: this.reconnectDelay,
+        timeout: 10000,
+        forceNew: true
+      });
       
       this.setupEventHandlers();
       this.startConnectionTimeout();
       
     } catch (error) {
-      console.error('❌ WebSocket connection failed:', error);
+      console.error('❌ Socket.IO connection failed:', error);
       this.handleConnectionError();
     }
   }
@@ -50,8 +62,9 @@ class WebSocketService {
   setupEventHandlers() {
     if (!this.socket) return;
 
-    this.socket.onopen = () => {
-      console.log('✅ WebSocket connected to backend');
+    // Connection events
+    this.socket.on('connect', () => {
+      console.log('✅ Socket.IO connected to backend');
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.startHeartbeat();
@@ -59,74 +72,79 @@ class WebSocketService {
       
       // Send authentication immediately after connection
       this.authenticate();
-    };
+    });
 
-    this.socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        this.handleMessage(data);
-      } catch (error) {
-        console.error('❌ Failed to parse WebSocket message:', error);
-      }
-    };
-
-    this.socket.onclose = (event) => {
-      console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+    this.socket.on('disconnect', (reason) => {
+      console.log('🔌 Socket.IO disconnected:', reason);
       this.isConnecting = false;
       this.stopHeartbeat();
       useNotificationStore.getState().setConnectionStatus(false);
       
-      if (!event.wasClean) {
-        this.handleReconnection();
+      if (reason === 'io server disconnect') {
+        // Server disconnected us, try to reconnect
+        this.socket.connect();
       }
-    };
+    });
 
-    this.socket.onerror = (error) => {
-      console.error('❌ WebSocket error:', error);
+    this.socket.on('connect_error', (error) => {
+      console.error('❌ Socket.IO connection error:', error);
       this.handleConnectionError();
-    };
+    });
+
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Socket.IO reconnected after', attemptNumber, 'attempts');
+      this.reconnectAttempts = 0;
+      useNotificationStore.getState().setConnectionStatus(true);
+      
+      // Re-authenticate after reconnection
+      this.authenticate();
+    });
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('❌ Socket.IO reconnection error:', error);
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('❌ Socket.IO reconnection failed after max attempts');
+      this.reconnectAttempts = this.maxReconnectAttempts;
+    });
+
+    // Custom event handlers
+    this.socket.on('notification', (data) => {
+      console.log('📨 Notification received:', data);
+      this.handleNotification(data);
+    });
+
+    this.socket.on('webhook_event', (data) => {
+      console.log('📨 Webhook event received:', data);
+      this.handleWebhookEvent(data);
+    });
+
+    this.socket.on('auth_success', (data) => {
+      console.log('✅ Socket.IO authentication successful:', data);
+    });
+
+    this.socket.on('auth_failed', (data) => {
+      console.error('❌ Socket.IO authentication failed:', data);
+      this.reconnect();
+    });
+
+    this.socket.on('subscription_confirmed', (data) => {
+      console.log('📝 Subscription confirmed:', data);
+    });
+
+    this.socket.on('heartbeat_response', (data) => {
+      console.log('💓 Heartbeat response:', data);
+    });
+
+    this.socket.on('connection_info', (data) => {
+      console.log('📊 Connection info:', data);
+    });
   }
 
-  handleMessage(data) {
-    console.log('📨 WebSocket message received:', data);
-    
-    switch (data.type) {
-      case 'notification':
-        // Add new notification to store
-        useNotificationStore.getState().addNotification(data.payload);
-        break;
-        
-      case 'notification_update':
-        // Update existing notification
-        // TODO: Implement notification update logic
-        break;
-        
-      case 'webhook_event':
-        // Handle webhook events from Instagram
-        this.handleWebhookEvent(data.payload);
-        break;
-        
-      case 'heartbeat':
-        // Respond to heartbeat
-        this.send({ type: 'heartbeat_response', timestamp: Date.now() });
-        break;
-        
-      case 'auth_success':
-        console.log('✅ WebSocket authentication successful');
-        break;
-        
-      case 'auth_failed':
-        console.error('❌ WebSocket authentication failed:', data.reason);
-        this.reconnect();
-        break;
-        
-      case 'connection_info':
-        console.log('📊 WebSocket connection info:', data);
-        break;
-        
-      default:
-        console.log('📨 Unknown message type:', data.type);
-    }
+  handleNotification(data) {
+    // Add notification to store
+    useNotificationStore.getState().addNotification(data);
   }
 
   handleWebhookEvent(payload) {
@@ -153,34 +171,32 @@ class WebSocketService {
   authenticate() {
     const token = localStorage.getItem('token');
     if (token) {
-      console.log('🔐 Sending authentication token to WebSocket');
-      this.send({
-        type: 'authenticate',
+      console.log('🔐 Sending authentication token to Socket.IO');
+      this.socket.emit('authenticate', {
         token: token,
         userId: localStorage.getItem('userId'),
         timestamp: Date.now()
       });
     } else {
-      console.warn('⚠️ No authentication token found for WebSocket');
+      console.warn('⚠️ No authentication token found for Socket.IO');
     }
   }
 
-  send(data) {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+  emit(event, data) {
+    if (this.socket && this.socket.connected) {
       try {
-        this.socket.send(JSON.stringify(data));
+        this.socket.emit(event, data);
       } catch (error) {
-        console.error('❌ Failed to send WebSocket message:', error);
+        console.error('❌ Failed to emit Socket.IO event:', error);
       }
     } else {
-      console.warn('⚠️ WebSocket not connected, message not sent:', data);
+      console.warn('⚠️ Socket.IO not connected, event not sent:', event, data);
     }
   }
 
   startHeartbeat() {
     this.heartbeatInterval = setInterval(() => {
-      this.send({ 
-        type: 'heartbeat', 
+      this.emit('heartbeat', { 
         timestamp: Date.now(),
         clientId: 'instantchat-frontend'
       });
@@ -196,8 +212,8 @@ class WebSocketService {
 
   startConnectionTimeout() {
     this.connectionTimeout = setTimeout(() => {
-      if (this.socket?.readyState !== WebSocket.OPEN) {
-        console.warn('⚠️ WebSocket connection timeout');
+      if (!this.socket?.connected) {
+        console.warn('⚠️ Socket.IO connection timeout');
         this.handleConnectionError();
       }
     }, 10000); // 10 second timeout
@@ -234,7 +250,7 @@ class WebSocketService {
 
   reconnect() {
     if (this.socket) {
-      this.socket.close();
+      this.socket.disconnect();
     }
     this.connect();
   }
@@ -254,7 +270,7 @@ class WebSocketService {
     }
     
     if (this.socket) {
-      this.socket.close(1000, 'User initiated disconnect');
+      this.socket.disconnect();
       this.socket = null;
     }
     
@@ -263,8 +279,7 @@ class WebSocketService {
 
   // Subscribe to specific webhook events
   subscribeToEvents(eventTypes = []) {
-    this.send({
-      type: 'subscribe',
+    this.emit('subscribe', {
       eventTypes: eventTypes,
       userId: localStorage.getItem('userId'),
       timestamp: Date.now()
@@ -273,8 +288,7 @@ class WebSocketService {
 
   // Unsubscribe from specific webhook events
   unsubscribeFromEvents(eventTypes = []) {
-    this.send({
-      type: 'unsubscribe',
+    this.emit('unsubscribe', {
       eventTypes: eventTypes,
       userId: localStorage.getItem('userId'),
       timestamp: Date.now()
@@ -283,17 +297,15 @@ class WebSocketService {
 
   // Request current webhook subscriptions
   getSubscriptions() {
-    this.send({
-      type: 'get_subscriptions',
+    this.emit('get_subscriptions', {
       userId: localStorage.getItem('userId'),
       timestamp: Date.now()
     });
   }
 
-  // Test webhook connection
+  // Test socket connection
   testConnection() {
-    this.send({
-      type: 'test_connection',
+    this.emit('test_connection', {
       userId: localStorage.getItem('userId'),
       timestamp: Date.now()
     });
@@ -302,21 +314,28 @@ class WebSocketService {
   getConnectionStatus() {
     if (!this.socket) return 'disconnected';
     
-    switch (this.socket.readyState) {
-      case WebSocket.CONNECTING: return 'connecting';
-      case WebSocket.OPEN: return 'connected';
-      case WebSocket.CLOSING: return 'closing';
-      case WebSocket.CLOSED: return 'disconnected';
-      default: return 'unknown';
-    }
+    if (this.socket.connected) return 'connected';
+    if (this.socket.connecting) return 'connecting';
+    return 'disconnected';
   }
 
   getBackendUrl() {
     return this.backendUrl;
   }
+
+  // Get Socket.IO specific info
+  getSocketInfo() {
+    if (!this.socket) return null;
+    
+    return {
+      id: this.socket.id,
+      connected: this.socket.connected,
+      disconnected: this.socket.disconnected
+    };
+  }
 }
 
 // Create singleton instance
-const websocketService = new WebSocketService();
+const socketIOService = new SocketIOService();
 
-export default websocketService;
+export default socketIOService;
