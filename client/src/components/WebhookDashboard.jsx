@@ -149,6 +149,17 @@ const WebhookDashboard = () => {
     return <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>{status}</Badge>;
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading webhook data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -235,20 +246,26 @@ const WebhookDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {stats.recentActivity?.slice(0, 5).map((event, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        {getEventTypeIcon(event.eventType)}
-                        <span className="text-sm font-medium">{event.eventType}</span>
+                  {stats.recentActivity && stats.recentActivity.length > 0 ? (
+                    stats.recentActivity.slice(0, 5).map((event, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          {getEventTypeIcon(event.eventType)}
+                          <span className="text-sm font-medium">{event.eventType}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {getProcessedStatusBadge(event.processedStatus)}
+                          <span className="text-xs text-gray-500">
+                            {new Date(event.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        {getProcessedStatusBadge(event.processedStatus)}
-                        <span className="text-xs text-gray-500">
-                          {new Date(event.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      No recent activity
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -263,15 +280,21 @@ const WebhookDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {stats.eventTypes?.map((type, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {getEventTypeIcon(type._id)}
-                        <span className="text-sm font-medium">{type._id}</span>
+                  {stats.eventTypes && stats.eventTypes.length > 0 ? (
+                    stats.eventTypes.map((type, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          {getEventTypeIcon(type._id)}
+                          <span className="text-sm font-medium">{type._id}</span>
+                        </div>
+                        <Badge variant="secondary">{type.count}</Badge>
                       </div>
-                      <Badge variant="secondary">{type.count}</Badge>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      No event types data
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -289,7 +312,8 @@ const WebhookDashboard = () => {
           </div>
 
           <div className="space-y-4">
-            {subscriptions.map((subscription) => (
+            {subscriptions && subscriptions.length > 0 ? (
+              subscriptions.map((subscription) => (
               <Card key={subscription.subscriptionId}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -344,7 +368,12 @@ const WebhookDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No subscriptions found. Create your first webhook subscription to get started.
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -403,7 +432,8 @@ const WebhookDashboard = () => {
 
           {/* Events List */}
           <div className="space-y-4">
-            {events.map((event) => (
+            {events && events.length > 0 ? (
+              events.map((event) => (
               <Card key={event.eventId}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -442,7 +472,12 @@ const WebhookDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No events found. Webhook events will appear here once they are received.
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
