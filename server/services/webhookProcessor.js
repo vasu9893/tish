@@ -1,0 +1,574 @@
+const crypto = require('crypto');
+const WebhookEvent = require('../models/WebhookEvent');
+const WebhookSubscription = require('../models/WebhookSubscription');
+const InstagramUser = require('../models/InstagramUser');
+
+class WebhookProcessor {
+  constructor() {
+    this.processingQueue = [];
+    this.isProcessing = false;
+    this.batchSize = 100;
+    this.retryDelay = 5000;
+    this.maxRetries = 3;
+  }
+
+  /**
+   * Verify webhook signature using X-Hub-Signature-256
+   */
+  verifySignature(payload, signature, appSecret) {
+    try {
+      const expectedSignature = 'sha256=' + crypto
+        .createHmac('sha256', appSecret)
+        .update(payload)
+        .digest('hex');
+      
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature)
+      );
+    } catch (error) {
+      console.error('❌ Webhook signature verification failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Process incoming webhook payload
+   */
+  async processWebhook(payload, headers, query) {
+    const startTime = Date.now();
+    
+    try {
+      console.log('📥 Processing webhook payload:', {
+        contentType: headers['content-type'],
+        userAgent: headers['user-agent'],
+        timestamp: new Date().toISOString()
+      });
+
+      // Extract webhook metadata
+      const webhookMetadata = {
+        hubMode: query['hub.mode'],
+        hubVerifyToken: query['hub.verify_token'],
+        hubTimestamp: query['hub.timestamp'],
+        hubSignature: headers['x-hub-signature-256']
+      };
+
+      // Verify webhook signature
+      const appSecret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
+      if (!this.verifySignature(JSON.stringify(payload), webhookMetadata.hubSignature, appSecret)) {
+        throw new Error('Invalid webhook signature');
+      }
+
+      // Parse and validate payload
+      const events = this.parsePayload(payload);
+      if (!events || events.length === 0) {
+        throw new Error('No valid events found in payload');
+      }
+
+      // Process each event
+      const processingResults = [];
+      for (const event of events) {
+        try {
+          const result = await this.processEvent(event, webhookMetadata);
+          processingResults.push(result);
+        } catch (error) {
+          console.error('❌ Failed to process event:', error);
+          processingResults.push({
+            success: false,
+            error: error.message,
+            event: event
+          });
+        }
+      }
+
+      const processingTime = Date.now() - startTime;
+      
+      console.log('✅ Webhook processing completed:', {
+        eventsProcessed: events.length,
+        successful: processingResults.filter(r => r.success).length,
+        failed: processingResults.filter(r => !r.success).length,
+        processingTime: `${processingTime}ms`
+      });
+
+      return {
+        success: true,
+        eventsProcessed: events.length,
+        results: processingResults,
+        processingTime
+      };
+
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error('❌ Webhook processing failed:', error);
+      
+      return {
+        success: false,
+        error: error.message,
+        processingTime
+      };
+    }
+  }
+
+  /**
+   * Parse webhook payload and extract events
+   */
+  parsePayload(payload) {
+    try {
+      const events = [];
+      
+      // Handle different payload structures
+      if (payload.object === 'instagram') {
+        if (payload.entry && Array.isArray(payload.entry)) {
+          for (const entry of payload.entry) {
+            if (entry.changes && Array.isArray(entry.changes)) {
+              for (const change of entry.changes) {
+                const event = this.parseInstagramChange(entry.id, change);
+                if (event) events.push(event);
+              }
+            }
+          }
+        }
+      }
+
+      return events;
+    } catch (error) {
+      console.error('❌ Failed to parse webhook payload:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Parse Instagram-specific change event
+   */
+  parseInstagramChange(accountId, change) {
+    try {
+      const { field, value } = change;
+      
+      // Map field to event type
+      const eventTypeMap = {
+        'comments': 'comments',
+        'live_comments': 'live_comments',
+        'messages': 'messages',
+        'message_reactions': 'message_reactions',
+        'message_postbacks': 'message_postbacks',
+        'message_referrals': 'message_referrals',
+        'message_seen': 'message_seen',
+        'mentions': 'mentions'
+      };
+
+      const eventType = eventTypeMap[field];
+      if (!eventType) {
+        console.warn('⚠️ Unknown Instagram field:', field);
+        return null;
+      }
+
+      // Extract event data based on type
+      const eventData = this.extractEventData(eventType, value, accountId);
+      if (!eventData) return null;
+
+      return {
+        eventType,
+        accountId,
+        ...eventData
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to parse Instagram change:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extract event data based on event type
+   */
+  extractEventData(eventType, value, accountId) {
+    try {
+      switch (eventType) {
+        case 'comments':
+        case 'live_comments':
+          return this.extractCommentData(value, accountId);
+        
+        case 'messages':
+          return this.extractMessageData(value, accountId);
+        
+        case 'message_reactions':
+          return this.extractReactionData(value, accountId);
+        
+        case 'mentions':
+          return this.extractMentionData(value, accountId);
+        
+        default:
+          return this.extractGenericData(value, accountId);
+      }
+    } catch (error) {
+      console.error('❌ Failed to extract event data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extract comment data
+   */
+  extractCommentData(value, accountId) {
+    if (!value || !value.comment_id) return null;
+
+    return {
+      senderId: value.from?.id || 'unknown',
+      recipientId: accountId,
+      content: {
+        text: value.text || '',
+        mediaUrl: value.media?.url || null,
+        mediaType: value.media?.type || null,
+        replyTo: value.reply_to?.comment_id || null,
+        parentId: value.media?.id || null
+      },
+      userInfo: {
+        username: value.from?.username || 'unknown',
+        fullName: value.from?.name || 'Unknown User',
+        profilePicture: value.from?.profile_picture_url || null,
+        verified: value.from?.verified || false
+      }
+    };
+  }
+
+  /**
+   * Extract message data
+   */
+  extractMessageData(value, accountId) {
+    if (!value || !value.message_id) return null;
+
+    return {
+      senderId: value.from?.id || 'unknown',
+      recipientId: accountId,
+      content: {
+        text: value.message || '',
+        mediaUrl: value.media?.url || null,
+        mediaType: value.media?.type || null,
+        replyTo: value.reply_to?.message_id || null,
+        parentId: value.thread_id || null
+      },
+      userInfo: {
+        username: value.from?.username || 'unknown',
+        fullName: value.from?.name || 'Unknown User',
+        profilePicture: value.from?.profile_picture_url || null,
+        verified: value.from?.verified || false
+      }
+    };
+  }
+
+  /**
+   * Extract reaction data
+   */
+  extractReactionData(value, accountId) {
+    if (!value || !value.reaction_id) return null;
+
+    return {
+      senderId: value.from?.id || 'unknown',
+      recipientId: accountId,
+      content: {
+        text: value.reaction || '',
+        mediaUrl: null,
+        mediaType: null,
+        replyTo: value.message_id || null,
+        parentId: value.thread_id || null
+      },
+      userInfo: {
+        username: value.from?.username || 'unknown',
+        fullName: value.from?.name || 'Unknown User',
+        profilePicture: value.from?.profile_picture_url || null,
+        verified: value.from?.verified || false
+      }
+    };
+  }
+
+  /**
+   * Extract mention data
+   */
+  extractMentionData(value, accountId) {
+    if (!value || !value.mention_id) return null;
+
+    return {
+      senderId: value.from?.id || 'unknown',
+      recipientId: accountId,
+      content: {
+        text: value.text || '',
+        mediaUrl: value.media?.url || null,
+        mediaType: value.media?.type || null,
+        replyTo: null,
+        parentId: value.media?.id || null
+      },
+      userInfo: {
+        username: value.from?.username || 'unknown',
+        fullName: value.from?.name || 'Unknown User',
+        profilePicture: value.from?.profile_picture_url || null,
+        verified: value.from?.verified || false
+      }
+    };
+  }
+
+  /**
+   * Extract generic data for unknown event types
+   */
+  extractGenericData(value, accountId) {
+    return {
+      senderId: value.from?.id || 'unknown',
+      recipientId: accountId,
+      content: {
+        text: JSON.stringify(value) || '',
+        mediaUrl: null,
+        mediaType: null,
+        replyTo: null,
+        parentId: null
+      },
+      userInfo: {
+        username: value.from?.username || 'unknown',
+        fullName: value.from?.name || 'Unknown User',
+        profilePicture: value.from?.profile_picture_url || null,
+        verified: value.from?.verified || false
+      }
+    };
+  }
+
+  /**
+   * Process individual event
+   */
+  async processEvent(event, webhookMetadata) {
+    const startTime = Date.now();
+    
+    try {
+      // Check if event is duplicate
+      const deduplicationKey = `${event.eventType}_${event.accountId}_${event.senderId}_${Date.now()}`;
+      const isDuplicate = await WebhookEvent.isDuplicate(deduplicationKey);
+      
+      if (isDuplicate) {
+        console.log('⚠️ Duplicate event detected, skipping:', deduplicationKey);
+        return {
+          success: true,
+          duplicate: true,
+          eventId: deduplicationKey
+        };
+      }
+
+      // Create webhook event record
+      const webhookEvent = new WebhookEvent({
+        eventId: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        eventType: event.eventType,
+        accountId: event.accountId,
+        senderId: event.senderId,
+        recipientId: event.recipientId,
+        payload: event,
+        content: event.content,
+        userInfo: event.userInfo,
+        webhookMetadata,
+        deduplicationKey
+      });
+
+      await webhookEvent.save();
+
+      // Update subscription statistics
+      await this.updateSubscriptionStats(event.accountId, {
+        success: true,
+        processingTime: Date.now() - startTime
+      });
+
+      // Add to processing queue
+      this.addToQueue(webhookEvent);
+
+      console.log('✅ Event processed successfully:', {
+        eventId: webhookEvent.eventId,
+        eventType: event.eventType,
+        senderId: event.senderId,
+        processingTime: Date.now() - startTime
+      });
+
+      return {
+        success: true,
+        eventId: webhookEvent.eventId,
+        processingTime: Date.now() - startTime
+      };
+
+    } catch (error) {
+      console.error('❌ Event processing failed:', error);
+      
+      // Update subscription statistics
+      await this.updateSubscriptionStats(event.accountId, {
+        success: false,
+        processingTime: Date.now() - startTime
+      });
+
+      return {
+        success: false,
+        error: error.message,
+        processingTime: Date.now() - startTime
+      };
+    }
+  }
+
+  /**
+   * Update subscription statistics
+   */
+  async updateSubscriptionStats(accountId, eventData) {
+    try {
+      const subscription = await WebhookSubscription.getActiveByAccount(accountId);
+      if (subscription) {
+        await subscription.updateStats(eventData);
+      }
+    } catch (error) {
+      console.error('❌ Failed to update subscription stats:', error);
+    }
+  }
+
+  /**
+   * Add event to processing queue
+   */
+  addToQueue(webhookEvent) {
+    this.processingQueue.push(webhookEvent);
+    
+    // Start processing if not already running
+    if (!this.isProcessing) {
+      this.processQueue();
+    }
+  }
+
+  /**
+   * Process events in queue
+   */
+  async processQueue() {
+    if (this.isProcessing || this.processingQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessing = true;
+    
+    try {
+      while (this.processingQueue.length > 0) {
+        const batch = this.processingQueue.splice(0, this.batchSize);
+        
+        console.log(`🔄 Processing batch of ${batch.length} events`);
+        
+        // Process batch in parallel
+        const promises = batch.map(event => this.processQueuedEvent(event));
+        await Promise.allSettled(promises);
+        
+        // Small delay between batches
+        if (this.processingQueue.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+    } catch (error) {
+      console.error('❌ Queue processing failed:', error);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  /**
+   * Process individual queued event
+   */
+  async processQueuedEvent(webhookEvent) {
+    try {
+      // Mark as processing
+      webhookEvent.processedStatus = 'processing';
+      await webhookEvent.save();
+
+      // Simulate processing (replace with actual business logic)
+      await this.executeBusinessLogic(webhookEvent);
+
+      // Mark as completed
+      await webhookEvent.markAsProcessed();
+
+      console.log('✅ Queued event processed:', webhookEvent.eventId);
+
+    } catch (error) {
+      console.error('❌ Queued event processing failed:', error);
+      
+      // Mark as failed
+      await webhookEvent.markAsFailed(error.message);
+      
+      // Retry logic
+      if (webhookEvent.processingAttempts < this.maxRetries) {
+        setTimeout(() => {
+          webhookEvent.retry();
+          this.addToQueue(webhookEvent);
+        }, this.retryDelay * (webhookEvent.processingAttempts + 1));
+      }
+    }
+  }
+
+  /**
+   * Execute business logic for webhook event
+   */
+  async executeBusinessLogic(webhookEvent) {
+    // This is where you'd implement your business logic
+    // For example: send notifications, update databases, trigger workflows, etc.
+    
+    switch (webhookEvent.eventType) {
+      case 'messages':
+        await this.handleNewMessage(webhookEvent);
+        break;
+      
+      case 'comments':
+        await this.handleNewComment(webhookEvent);
+        break;
+      
+      case 'mentions':
+        await this.handleNewMention(webhookEvent);
+        break;
+      
+      default:
+        console.log(`ℹ️ No specific handler for event type: ${webhookEvent.eventType}`);
+    }
+  }
+
+  /**
+   * Handle new message events
+   */
+  async handleNewMessage(webhookEvent) {
+    console.log('💬 Processing new message:', {
+      sender: webhookEvent.userInfo.username,
+      content: webhookEvent.content.text?.substring(0, 50) + '...'
+    });
+    
+    // Add your message handling logic here
+    // For example: update conversation, send notifications, etc.
+  }
+
+  /**
+   * Handle new comment events
+   */
+  async handleNewComment(webhookEvent) {
+    console.log('💭 Processing new comment:', {
+      sender: webhookEvent.userInfo.username,
+      content: webhookEvent.content.text?.substring(0, 50) + '...'
+    });
+    
+    // Add your comment handling logic here
+  }
+
+  /**
+   * Handle new mention events
+   */
+  async handleNewMention(webhookEvent) {
+    console.log('📢 Processing new mention:', {
+      sender: webhookEvent.userInfo.username,
+      content: webhookEvent.content.text?.substring(0, 50) + '...'
+    });
+    
+    // Add your mention handling logic here
+  }
+
+  /**
+   * Get processing statistics
+   */
+  getStats() {
+    return {
+      queueLength: this.processingQueue.length,
+      isProcessing: this.isProcessing,
+      batchSize: this.batchSize,
+      retryDelay: this.retryDelay,
+      maxRetries: this.maxRetries
+    };
+  }
+}
+
+module.exports = new WebhookProcessor();

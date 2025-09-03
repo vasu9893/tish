@@ -75,6 +75,9 @@ app.use('/api/instagram', require('./routes/instagram'))
 app.use('/api/flow', require('./routes/flow'))
 app.use('/webhook', require('./routes/webhook'))
 
+// Webhook Management System
+app.use('/api/webhooks', require('./routes/webhooks'))
+
 // Bull Board admin dashboard (temporarily disabled)
 // app.use('/admin/queues', bullBoardAdapter.getRouter())
 
