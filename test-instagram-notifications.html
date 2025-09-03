@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Instagram Notifications</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .event-examples {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .event-example {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        .event-example:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Instagram Notifications</h1>
+        
+        <div class="info">
+            <strong>Why DM notifications don't work:</strong> Instagram's Graph API doesn't provide webhook events for direct messages. Only public events like comments, mentions, and post interactions are supported.
+        </div>
+        
+        <div class="info">
+            <strong>What this tool does:</strong> Simulates Instagram webhook events to test your notification system. Use this to verify that notifications appear in your dashboard.
+        </div>
+        
+        <!-- Login Section -->
+        <div id="loginSection">
+            <h3>🔐 Authentication Required</h3>
+            <p>Please log in with your InstantChat credentials to test notifications.</p>
+            
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Enter your username" />
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password" />
+            </div>
+            
+            <button class="button" onclick="login()">🔐 Login</button>
+            
+            <div id="loginResult"></div>
+        </div>
+        
+        <!-- Test Section (Hidden until logged in) -->
+        <div id="testSection" style="display: none;">
+            <h3>🧪 Test Instagram Events</h3>
+            
+            <div class="form-group">
+                <label for="eventType">Event Type:</label>
+                <select id="eventType">
+                    <option value="comments">Comments</option>
+                    <option value="mentions">Mentions</option>
+                    <option value="live_comments">Live Comments</option>
+                    <option value="message_reactions">Message Reactions</option>
+                    <option value="flow_execution">Flow Execution</option>
+                    <option value="webhook_error">Webhook Error</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="testUsername" placeholder="Enter username for the event" value="test_user" />
+            </div>
+            
+            <div class="form-group">
+                <label for="content">Content:</label>
+                <textarea id="content" placeholder="Enter the content/message for this event"></textarea>
+            </div>
+            
+            <button class="button" onclick="simulateEvent()">🚀 Simulate Event</button>
+            <button class="button" onclick="logout()" style="background: #6c757d;">🚪 Logout</button>
+            
+            <div id="testResult"></div>
+            
+            <!-- Quick Test Examples -->
+            <div class="event-examples">
+                <h4>Quick Test Examples:</h4>
+                <div class="event-example" onclick="fillExample('comments', 'Great post! Love the content!')">
+                    💬 <strong>Comment:</strong> "Great post! Love the content!"
+                </div>
+                <div class="event-example" onclick="fillExample('mentions', '@yourbrand mentioned you in a story')">
+                    🏷️ <strong>Mention:</strong> "@yourbrand mentioned you in a story"
+                </div>
+                <div class="event-example" onclick="fillExample('live_comments', 'Amazing live session!')">
+                    📺 <strong>Live Comment:</strong> "Amazing live session!"
+                </div>
+                <div class="event-example" onclick="fillExample('message_reactions', 'User reacted with ❤️ to your message')">
+                    ❤️ <strong>Reaction:</strong> "User reacted with ❤️ to your message"
+                </div>
+                <div class="event-example" onclick="fillExample('flow_execution', 'Automated response sent successfully')">
+                    🤖 <strong>Flow Execution:</strong> "Automated response sent successfully"
+                </div>
+            </div>
+            
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://tish-production.up.railway.app';
+        let authToken = null;
+        let currentUser = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            if (!logDiv) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#17a2b8';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function showLoginResult(message, type = 'info') {
+            const loginResultDiv = document.getElementById('loginResult');
+            if (loginResultDiv) {
+                loginResultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            }
+        }
+        
+        function showTestResult(message, type = 'info') {
+            const testResultDiv = document.getElementById('testResult');
+            if (testResultDiv) {
+                testResultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            }
+        }
+        
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showLoginResult('❌ Please enter both username and password', 'error');
+                return;
+            }
+            
+            try {
+                showLoginResult('🔐 Logging in...', 'info');
+                
+                const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    
+                    showLoginResult('✅ Login successful! Loading test tools...', 'success');
+                    
+                    // Hide login section and show test section
+                    setTimeout(() => {
+                        document.getElementById('loginSection').style.display = 'none';
+                        document.getElementById('testSection').style.display = 'block';
+                        showLoginResult('', 'info'); // Clear login result
+                        
+                        log('🚀 Instagram Notification Test Tool loaded');
+                        log('Select an event type and click "Simulate Event" to test');
+                    }, 1000);
+                    
+                } else {
+                    showLoginResult(`❌ Login failed: ${data.error || 'Invalid credentials'}`, 'error');
+                }
+                
+            } catch (error) {
+                showLoginResult(`❌ Login error: ${error.message}`, 'error');
+            }
+        }
+        
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            
+            // Show login section and hide test section
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('testSection').style.display = 'none';
+            
+            // Clear forms and results
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginResult').innerHTML = '';
+            document.getElementById('testResult').innerHTML = '';
+            document.getElementById('log').innerHTML = '';
+            
+            showLoginResult('✅ Logged out successfully', 'success');
+        }
+        
+        async function simulateEvent() {
+            if (!authToken) {
+                showTestResult('❌ Please log in first', 'error');
+                return;
+            }
+            
+            const eventType = document.getElementById('eventType').value;
+            const username = document.getElementById('testUsername').value.trim();
+            const content = document.getElementById('content').value.trim();
+            
+            if (!content) {
+                showTestResult('❌ Please enter content for the event', 'error');
+                return;
+            }
+            
+            try {
+                log(`🚀 Simulating ${eventType} event...`);
+                showTestResult('🚀 Simulating event...', 'info');
+                
+                const response = await fetch(`${BACKEND_URL}/api/instagram/debug/simulate-event`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ eventType, content, username })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`✅ Event simulated successfully: ${data.data.eventId}`, 'success');
+                    showTestResult(`
+                        🎉 Event simulated successfully!<br>
+                        <strong>Event ID:</strong> ${data.data.eventId}<br>
+                        <strong>Type:</strong> ${data.data.eventType}<br>
+                        <strong>Content:</strong> ${data.data.content}<br>
+                        <br>
+                        <strong>Next Steps:</strong><br>
+                        1. Go to your InstantChat dashboard<br>
+                        2. Check the Notifications tab<br>
+                        3. You should see the new event appear!<br>
+                        4. If using real-time updates, it should appear instantly
+                    `, 'success');
+                    
+                    // Clear content for next test
+                    document.getElementById('content').value = '';
+                    
+                } else {
+                    log(`❌ Event simulation failed: ${data.error}`, 'error');
+                    showTestResult(`❌ Event simulation failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error simulating event: ${error.message}`, 'error');
+                showTestResult(`❌ Error simulating event: ${error.message}`, 'error');
+            }
+        }
+        
+        function fillExample(eventType, content) {
+            document.getElementById('eventType').value = eventType;
+            document.getElementById('content').value = content;
+            log(`📝 Filled example: ${eventType} - ${content}`);
+        }
+        
+        // Handle Enter key in password field
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+        
+        // Auto-focus username field when page loads
+        window.onload = function() {
+            document.getElementById('username').focus();
+        };
+    </script>
+</body>
+</html>

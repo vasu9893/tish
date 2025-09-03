@@ -43,7 +43,7 @@ const Dashboard = ({ user, onLogout }) => {
   const location = useLocation()
 
   // Add error boundary
-  useEffect(() => {
+    useEffect(() => {
     if (location.state?.error) {
       setError(location.state.error)
       setActiveTab('notifications')
@@ -124,15 +124,15 @@ const Dashboard = ({ user, onLogout }) => {
 
               {/* User Menu */}
               <div className="relative">
-                <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3">
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">{user?.username || 'User'}</p>
                     <p className="text-xs text-gray-500">{user?.email || 'user@example.com'}</p>
                   </div>
-                  <Avatar className="w-8 h-8">
+                <Avatar className="w-8 h-8">
                     <AvatarImage src={user?.avatar} />
                     <AvatarFallback>{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
-                  </Avatar>
+                </Avatar>
                 </div>
               </div>
 
@@ -160,17 +160,17 @@ const Dashboard = ({ user, onLogout }) => {
                 <h3 className="text-sm font-medium text-green-800">Success!</h3>
                 <p className="text-sm text-green-700">{successData.message}</p>
               </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
               onClick={() => setShowSuccessMessage(false)}
               className="text-green-600 hover:text-green-700"
-            >
+                >
               <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+                </Button>
+              </div>
+            </div>
       )}
 
       {/* Error Message */}
@@ -182,7 +182,7 @@ const Dashboard = ({ user, onLogout }) => {
               <div>
                 <h3 className="text-sm font-medium text-red-800">Error</h3>
                 <p className="text-sm text-red-700">{error}</p>
-              </div>
+          </div>
             </div>
             <Button
               variant="ghost"
@@ -192,8 +192,8 @@ const Dashboard = ({ user, onLogout }) => {
             >
               <X className="w-4 h-4" />
             </Button>
-          </div>
         </div>
+      </div>
       )}
 
       {/* Main Content */}
@@ -203,28 +203,28 @@ const Dashboard = ({ user, onLogout }) => {
             <TabsTrigger value="notifications" className="flex items-center space-x-2">
               <Bell className="w-4 h-4" />
               <span>Notifications</span>
-            </TabsTrigger>
-            <TabsTrigger value="instagram" className="flex items-center space-x-2">
-              <Instagram className="w-4 h-4" />
-              <span>Instagram</span>
-            </TabsTrigger>
-            <TabsTrigger value="flows" className="flex items-center space-x-2">
-              <Bot className="w-4 h-4" />
-              <span>Flows</span>
-            </TabsTrigger>
-            <TabsTrigger value="automation" className="flex items-center space-x-2">
-              <Zap className="w-4 h-4" />
-              <span>Automation</span>
-            </TabsTrigger>
+          </TabsTrigger>
+          <TabsTrigger value="instagram" className="flex items-center space-x-2">
+            <Instagram className="w-4 h-4" />
+            <span>Instagram</span>
+          </TabsTrigger>
+          <TabsTrigger value="flows" className="flex items-center space-x-2">
+            <Bot className="w-4 h-4" />
+            <span>Flows</span>
+          </TabsTrigger>
+          <TabsTrigger value="automation" className="flex items-center space-x-2">
+            <Zap className="w-4 h-4" />
+            <span>Automation</span>
+          </TabsTrigger>
             <TabsTrigger value="webhooks" className="flex items-center space-x-2">
               <BarChart3 className="w-4 h-4" />
               <span>Webhooks</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <SettingsIcon className="w-4 h-4" />
-              <span>Settings</span>
-            </TabsTrigger>
-          </TabsList>
+          <TabsTrigger value="settings" className="flex items-center space-x-2">
+            <SettingsIcon className="w-4 h-4" />
+            <span>Settings</span>
+          </TabsTrigger>
+        </TabsList>
 
           {/* Notifications Tab - Now Primary */}
           <TabsContent value="notifications" className="space-y-6">
@@ -286,14 +286,14 @@ const Dashboard = ({ user, onLogout }) => {
                 <p className="text-gray-600">Build and manage automated workflows for Instagram engagement</p>
               </div>
               <div className="flex space-x-2">
-                <Button 
-                  onClick={() => navigate('/flow-builder')}
+              <Button 
+                onClick={() => navigate('/flow-builder')}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
+              >
                   <Plus className="w-4 h-4 mr-2" />
                   Create New Flow
-                </Button>
-              </div>
+              </Button>
+            </div>
             </div>
             
             <FlowBuilder />
@@ -487,7 +487,7 @@ const Dashboard = ({ user, onLogout }) => {
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
             <div className="flex justify-between items-center">
-              <div>
+            <div>
                 <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
                 <p className="text-gray-600">Manage your account settings and preferences</p>
               </div>

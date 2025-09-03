@@ -1,197 +1,124 @@
 const mongoose = require('mongoose');
 
 const webhookEventSchema = new mongoose.Schema({
-  // Event identification
-  eventId: {
-    type: String,
-    required: true,
-    unique: true,
-    index: true
-  },
-  
-  // Event metadata
   eventType: {
     type: String,
     required: true,
-    enum: [
-      'comments',
-      'live_comments', 
-      'messages',
-      'message_reactions',
-      'message_postbacks',
-      'message_referrals',
-      'message_seen',
-      'mentions'
-    ],
-    index: true
+    enum: ['comments', 'mentions', 'live_comments', 'message_reactions', 'message_postbacks', 'message_referrals', 'message_seen', 'flow_execution', 'webhook_error']
   },
-  
-  // Instagram account information
-  accountId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  
-  // Sender and recipient information
-  senderId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  
-  recipientId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  
-  // Event payload and content
-  payload: {
-    type: mongoose.Schema.Types.Mixed,
-    required: true
-  },
-  
-  // Content extraction for easy access
-  content: {
-    text: String,
-    mediaUrl: String,
-    mediaType: String,
-    replyTo: String,
-    parentId: String
-  },
-  
-  // User information from payload
-  userInfo: {
-    username: String,
-    fullName: String,
-    profilePicture: String,
-    verified: Boolean
-  },
-  
-  // Processing status
-  processedStatus: {
-    type: String,
-    enum: ['pending', 'processing', 'completed', 'failed', 'retry'],
-    default: 'pending',
-    index: true
-  },
-  
-  // Processing metadata
-  processingAttempts: {
-    type: Number,
-    default: 0
-  },
-  
-  lastProcessingAttempt: Date,
-  
-  processingError: String,
-  
-  // Timestamps
   timestamp: {
     type: Date,
     required: true,
-    default: Date.now,
-    index: true
+    default: Date.now
   },
-  
-  // Meta webhook metadata
-  webhookMetadata: {
-    hubMode: String,
-    hubVerifyToken: String,
-    hubTimestamp: String,
-    hubSignature: String
+  content: {
+    text: String,
+    media: String,
+    url: String
   },
-  
-  // Deduplication
-  deduplicationKey: {
+  userInfo: {
+    username: String,
+    userId: String,
+    profilePicture: String
+  },
+  postInfo: {
+    postId: String,
+    postUrl: String,
+    postType: String
+  },
+  liveInfo: {
+    liveId: String,
+    isLive: Boolean,
+    liveTitle: String
+  },
+  reactionInfo: {
+    reactionType: String,
+    messageId: String
+  },
+  pageId: {
     type: String,
-    required: true,
-    unique: true,
-    index: true
+    required: true
   },
-  
-  // Integration tracking
-  integrationStatus: {
-    queued: { type: Boolean, default: false },
-    queuedAt: Date,
-    processedByQueue: { type: Boolean, default: false },
-    queueProcessingTime: Number
-  }
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  isProcessed: {
+    type: Boolean,
+    default: false
+  },
+  processingError: String,
+  flowResponse: String,
+  metadata: mongoose.Schema.Types.Mixed
 }, {
-  timestamps: true,
-  // Indexes for performance
-  indexes: [
-    { eventType: 1, timestamp: -1 },
-    { accountId: 1, timestamp: -1 },
-    { senderId: 1, timestamp: -1 },
-    { processedStatus: 1, timestamp: -1 },
-    { deduplicationKey: 1 }
-  ]
+  timestamps: true
 });
 
-// Generate deduplication key
-webhookEventSchema.methods.generateDeduplicationKey = function() {
-  return `${this.eventType}_${this.accountId}_${this.senderId}_${this.timestamp.getTime()}`;
+// Indexes for efficient querying
+webhookEventSchema.index({ userId: 1, timestamp: -1 });
+webhookEventSchema.index({ eventType: 1, timestamp: -1 });
+webhookEventSchema.index({ pageId: 1, timestamp: -1 });
+webhookEventSchema.index({ isProcessed: 1 });
+
+// Virtual for formatted timestamp
+webhookEventSchema.virtual('formattedTimestamp').get(function() {
+  return this.timestamp.toLocaleString();
+});
+
+// Method to mark as processed
+webhookEventSchema.methods.markAsProcessed = function() {
+  this.isProcessed = true;
+  return this.save();
 };
 
-// Check if event is duplicate
-webhookEventSchema.statics.isDuplicate = async function(deduplicationKey) {
-  const existing = await this.findOne({ deduplicationKey });
-  return !!existing;
+// Method to mark as read
+webhookEventSchema.methods.markAsRead = function() {
+  this.isRead = true;
+  return this.save();
 };
 
-// Get recent events by type
-webhookEventSchema.statics.getRecentByType = async function(eventType, limit = 50) {
-  return this.find({ eventType })
+// Static method to get events by user
+webhookEventSchema.statics.getEventsByUser = function(userId, limit = 50, offset = 0) {
+  return this.find({ userId })
     .sort({ timestamp: -1 })
     .limit(limit)
-    .select('-payload -webhookMetadata');
+    .skip(offset);
 };
 
-// Get events by account
-webhookEventSchema.statics.getByAccount = async function(accountId, limit = 100) {
-  return this.find({ accountId })
+// Static method to get unprocessed events
+webhookEventSchema.statics.getUnprocessedEvents = function(userId) {
+  return this.find({ userId, isProcessed: false })
+    .sort({ timestamp: -1 });
+};
+
+// Static method to get events by type
+webhookEventSchema.statics.getEventsByType = function(userId, eventType, limit = 50) {
+  return this.find({ userId, eventType })
     .sort({ timestamp: -1 })
-    .limit(limit)
-    .select('-payload -webhookMetadata');
-};
-
-// Get unprocessed events
-webhookEventSchema.statics.getUnprocessed = async function(limit = 100) {
-  return this.find({ 
-    processedStatus: { $in: ['pending', 'failed'] },
-    processingAttempts: { $lt: 3 }
-  })
-    .sort({ timestamp: 1 })
     .limit(limit);
 };
 
-// Mark as processed
-webhookEventSchema.methods.markAsProcessed = function() {
-  this.processedStatus = 'completed';
-  this.lastProcessingAttempt = new Date();
-  return this.save();
+// Static method to get events count by type
+webhookEventSchema.statics.getEventCountsByType = function(userId) {
+  return this.aggregate([
+    { $match: { userId: mongoose.Types.ObjectId(userId) } },
+    { $group: { _id: '$eventType', count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
 };
 
-// Mark as failed
-webhookEventSchema.methods.markAsFailed = function(error, incrementAttempts = true) {
-  this.processedStatus = 'failed';
-  this.processingError = error;
-  this.lastProcessingAttempt = new Date();
-  
-  if (incrementAttempts) {
-    this.processingAttempts += 1;
-  }
-  
-  return this.save();
+// Static method to get events in date range
+webhookEventSchema.statics.getEventsInDateRange = function(userId, startDate, endDate) {
+  return this.find({
+    userId,
+    timestamp: {
+      $gte: startDate,
+      $lte: endDate
+    }
+  }).sort({ timestamp: -1 });
 };
 
-// Retry processing
-webhookEventSchema.methods.retry = function() {
-  this.processedStatus = 'pending';
-  this.lastProcessingAttempt = new Date();
-  return this.save();
-};
+const WebhookEvent = mongoose.model('WebhookEvent', webhookEventSchema);
 
-module.exports = mongoose.model('WebhookEvent', webhookEventSchema);
+module.exports = WebhookEvent;
