@@ -266,101 +266,41 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Quick Navigation */}
-      <div className="bg-gray-50 border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-6 py-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('chats')}
-              className={`${activeTab === 'chats' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Chats
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('instagram')}
-              className={`${activeTab === 'instagram' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <Instagram className="w-4 h-4 mr-2" />
-              Instagram
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('flows')}
-              className={`${activeTab === 'flows' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <Bot className="w-4 h-4 mr-2" />
-              Flows
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('automation')}
-              className={`${activeTab === 'automation' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Automation
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('webhooks')}
-              className={`${activeTab === 'webhooks' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Webhooks
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('settings')}
-              className={`${activeTab === 'settings' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <SettingsIcon className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-          </div>
-        </div>
-      </div>
+
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                  <TabsList className="grid w-full grid-cols-7 max-w-4xl mx-auto">
-          <TabsTrigger value="chats" className="flex items-center space-x-2">
-            <MessageCircle className="w-4 h-4" />
-            <span>Chats</span>
-          </TabsTrigger>
-          <TabsTrigger value="instagram" className="flex items-center space-x-2">
-            <Instagram className="w-4 h-4" />
-            <span>Instagram</span>
-          </TabsTrigger>
-          <TabsTrigger value="flows" className="flex items-center space-x-2">
-            <Bot className="w-4 h-4" />
-            <span>Flows</span>
-          </TabsTrigger>
-          <TabsTrigger value="automation" className="flex items-center space-x-2">
-            <Zap className="w-4 h-4" />
-            <span>Automation</span>
-          </TabsTrigger>
-          <TabsTrigger value="webhooks" className="flex items-center space-x-2">
-            <BarChart3 className="w-4 h-4" />
-            <span>Webhooks</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center space-x-2">
-            <Bell className="w-4 h-4" />
-            <span>Notifications</span>
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center space-x-2">
-            <SettingsIcon className="w-4 h-4" />
-            <span>Settings</span>
-          </TabsTrigger>
-        </TabsList>
+          <TabsList className="grid w-full grid-cols-7 max-w-4xl mx-auto">
+            <TabsTrigger value="chats" className="flex items-center space-x-2">
+              <MessageCircle className="w-4 h-4" />
+              <span>Chats</span>
+            </TabsTrigger>
+            <TabsTrigger value="instagram" className="flex items-center space-x-2">
+              <Instagram className="w-4 h-4" />
+              <span>Instagram</span>
+            </TabsTrigger>
+            <TabsTrigger value="flows" className="flex items-center space-x-2">
+              <Bot className="w-4 h-4" />
+              <span>Flows</span>
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="flex items-center space-x-2">
+              <Zap className="w-4 h-4" />
+              <span>Automation</span>
+            </TabsTrigger>
+            <TabsTrigger value="webhooks" className="flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4" />
+              <span>Webhooks</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center space-x-2">
+              <Bell className="w-4 h-4" />
+              <span>Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center space-x-2">
+              <SettingsIcon className="w-4 h-4" />
+              <span>Settings</span>
+            </TabsTrigger>
+          </TabsList>
 
           {/* Chats Tab */}
           <TabsContent value="chats" className="space-y-6">
@@ -388,7 +328,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Instagram Management</h2>
-                <p className="text-gray-600">Direct messaging, conversations, analytics, and Instagram automation</p>
+                <p className="text-gray-600">Manage Instagram connections, chat, and analytics</p>
               </div>
               <div className="flex space-x-2">
                 <Button 
@@ -402,21 +342,9 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
             </div>
             
-            {/* Instagram Sub-tabs */}
-            <div className="bg-white rounded-lg border">
-              <div className="border-b">
-                <nav className="flex space-x-8 px-6">
-                  <button className="py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium">
-                    Chat
-                  </button>
-                  <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium">
-                    Analytics
-                  </button>
-                </nav>
-              </div>
-              <div className="p-6">
-                <InstagramChat />
-              </div>
+            {/* Instagram Content */}
+            <div className="bg-white rounded-lg border p-6">
+              <InstagramChat />
             </div>
           </TabsContent>
 
