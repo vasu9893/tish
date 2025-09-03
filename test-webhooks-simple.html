@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Webhook Testing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Simple Webhook Testing</h1>
+        
+        <div class="info">
+            <strong>Why No Real Webhooks?</strong> Instagram webhooks need to be configured in Meta Developer Console and your server must be accessible from the internet.
+        </div>
+        
+        <!-- Login Section -->
+        <div id="loginSection">
+            <h3>🔐 Authentication Required</h3>
+            <p>Please log in with your InstantChat credentials to test webhooks.</p>
+            
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Enter your username" />
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password" />
+            </div>
+            
+            <button class="button" onclick="login()">🔐 Login</button>
+            
+            <div id="loginResult"></div>
+        </div>
+        
+        <!-- Test Section (Hidden until logged in) -->
+        <div id="testSection" style="display: none;">
+            <h3>🧪 Test Webhook System</h3>
+            
+            <div class="form-group">
+                <label for="eventType">Event Type:</label>
+                <select id="eventType">
+                    <option value="comments">Comments</option>
+                    <option value="mentions">Mentions</option>
+                    <option value="live_comments">Live Comments</option>
+                    <option value="message_reactions">Message Reactions</option>
+                    <option value="flow_execution">Flow Execution</option>
+                    <option value="webhook_error">Webhook Error</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="content">Content:</label>
+                <input type="text" id="content" placeholder="Enter content for the event" value="Test webhook event" />
+            </div>
+            
+            <button class="button" onclick="simulateEvent()">🚀 Simulate Event</button>
+            <button class="button" onclick="testWebhookEndpoint()" style="background: #28a745;">🧪 Test Endpoint</button>
+            <button class="button" onclick="logout()" style="background: #6c757d;">🚪 Logout</button>
+            
+            <div id="testResult"></div>
+            
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://tish-production.up.railway.app';
+        let authToken = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            if (!logDiv) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#17a2b8';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function showLoginResult(message, type = 'info') {
+            const loginResultDiv = document.getElementById('loginResult');
+            if (loginResultDiv) {
+                loginResultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            }
+        }
+        
+        function showTestResult(message, type = 'info') {
+            const testResultDiv = document.getElementById('testResult');
+            if (testResultDiv) {
+                testResultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            }
+        }
+        
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showLoginResult('❌ Please enter both username and password', 'error');
+                return;
+            }
+            
+            try {
+                showLoginResult('🔐 Logging in...', 'info');
+                
+                const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    
+                    showLoginResult('✅ Login successful! Loading test tools...', 'success');
+                    
+                    setTimeout(() => {
+                        document.getElementById('loginSection').style.display = 'none';
+                        document.getElementById('testSection').style.display = 'block';
+                        showLoginResult('', 'info');
+                        
+                        log('🚀 Webhook Testing Tool loaded');
+                        log('Click "Test Endpoint" to verify webhook connectivity');
+                    }, 1000);
+                    
+                } else {
+                    showLoginResult(`❌ Login failed: ${data.error || 'Invalid credentials'}`, 'error');
+                }
+                
+            } catch (error) {
+                showLoginResult(`❌ Login error: ${error.message}`, 'error');
+            }
+        }
+        
+        function logout() {
+            authToken = null;
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('testSection').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginResult').innerHTML = '';
+            document.getElementById('testResult').innerHTML = '';
+            document.getElementById('log').innerHTML = '';
+            showLoginResult('✅ Logged out successfully', 'success');
+        }
+        
+        async function testWebhookEndpoint() {
+            if (!authToken) {
+                showTestResult('❌ Please log in first', 'error');
+                return;
+            }
+            
+            try {
+                log('🧪 Testing webhook endpoint...');
+                showTestResult('🧪 Testing webhook endpoint...', 'info');
+                
+                const response = await fetch(`${BACKEND_URL}/api/instagram/webhook/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`✅ Webhook status: ${data.status}`, 'success');
+                    showTestResult(`
+                        🎉 Webhook endpoint test successful!<br>
+                        <strong>Status:</strong> ${data.status}<br>
+                        <strong>Message:</strong> ${data.message}<br>
+                        <strong>Webhook URL:</strong> ${data.webhookUrl}<br>
+                        <br>
+                        <strong>Next Steps:</strong><br>
+                        1. Go to your InstantChat dashboard<br>
+                        2. Check the Webhooks tab<br>
+                        3. You should see the webhook status there!
+                    `, 'success');
+                } else {
+                    log(`❌ Webhook test failed: ${data.error}`, 'error');
+                    showTestResult(`❌ Webhook test failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error testing webhook: ${error.message}`, 'error');
+                showTestResult(`❌ Error testing webhook: ${error.message}`, 'error');
+            }
+        }
+        
+        async function simulateEvent() {
+            if (!authToken) {
+                showTestResult('❌ Please log in first', 'error');
+                return;
+            }
+            
+            const eventType = document.getElementById('eventType').value;
+            const content = document.getElementById('content').value.trim();
+            
+            if (!content) {
+                showTestResult('❌ Please enter content for the event', 'error');
+                return;
+            }
+            
+            try {
+                log(`🚀 Simulating ${eventType} event...`);
+                showTestResult('🚀 Simulating event...', 'info');
+                
+                const response = await fetch(`${BACKEND_URL}/api/instagram/debug/simulate-event`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ eventType, content, username: 'test_user' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`✅ Event simulated successfully: ${data.data.eventId}`, 'success');
+                    showTestResult(`
+                        🎉 Event simulated successfully!<br>
+                        <strong>Event ID:</strong> ${data.data.eventId}<br>
+                        <strong>Type:</strong> ${data.data.eventType}<br>
+                        <strong>Content:</strong> ${data.data.content}<br>
+                        <br>
+                        <strong>Next Steps:</strong><br>
+                        1. Go to your InstantChat dashboard<br>
+                        2. Check the Notifications tab<br>
+                        3. You should see the new event appear!<br>
+                        4. Check the Webhooks tab for webhook status
+                    `, 'success');
+                    
+                    document.getElementById('content').value = '';
+                    
+                } else {
+                    log(`❌ Event simulation failed: ${data.error}`, 'error');
+                    showTestResult(`❌ Event simulation failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error simulating event: ${error.message}`, 'error');
+                showTestResult(`❌ Error simulating event: ${error.message}`, 'error');
+            }
+        }
+        
+        // Handle Enter key in password field
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+        
+        // Auto-focus username field when page loads
+        window.onload = function() {
+            document.getElementById('username').focus();
+        };
+    </script>
+</body>
+</html>

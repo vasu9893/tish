@@ -19,7 +19,6 @@ import api from '../utils/api'
 const WebhookTesting = () => {
   const [webhookStatus, setWebhookStatus] = useState('unknown')
   const [webhookUrl, setWebhookUrl] = useState('')
-  [webhookUrl, setWebhookUrl] = useState('')
   const [testResults, setTestResults] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [webhookEvents, setWebhookEvents] = useState([])

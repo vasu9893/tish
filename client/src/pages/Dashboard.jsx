@@ -29,6 +29,7 @@ import InstagramAutomation from '../components/InstagramAutomation'
 import InstagramAnalytics from '../components/InstagramAnalytics'
 import NotificationDashboard from '../components/NotificationDashboard'
 import NotificationBell from '../components/NotificationBell'
+import WebhookTesting from '../components/WebhookTesting'
 import api from '../utils/api'
 import { Badge } from '../components/ui/badge'
 
@@ -469,98 +470,10 @@ const Dashboard = ({ user, onLogout }) => {
                 <h2 className="text-2xl font-bold text-gray-900">Webhook Management</h2>
                 <p className="text-gray-600">Configure and monitor Instagram webhook endpoints for real-time notifications</p>
               </div>
-              <div className="flex space-x-2">
-                <Button 
-                  onClick={() => navigate('/webhook-management')}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  Open Webhook Dashboard
-                </Button>
-              </div>
             </div>
             
-            {/* Webhook Status */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <BarChart3 className="w-5 h-5 text-blue-600" />
-                    <span>Webhook Status</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Monitor your Instagram webhook connection and event processing
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Connection Status</span>
-                    <Badge variant={isConnected ? 'default' : 'secondary'}>
-                      {isConnected ? 'Connected' : 'Disconnected'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Last Event</span>
-                    <span className="text-sm text-gray-500">2 minutes ago</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Events Today</span>
-                    <span className="text-sm text-gray-500">47</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Activity className="w-5 h-5 text-green-600" />
-                    <span>Event Types</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Configure which Instagram events to receive
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Comments</span>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Mentions</span>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Message Reactions</span>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Live Comments</span>
-                    <Badge variant="secondary">Inactive</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button 
-                  onClick={() => navigate('/webhook-management')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  Open Webhook Dashboard
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => navigate('/webhook-management?tab=testing')}
-                  className="w-full"
-                >
-                  🧪 Test Webhooks
-                </Button>
-              </div>
-            </div>
+            {/* Webhook Testing Component */}
+            <WebhookTesting />
           </TabsContent>
 
           {/* Settings Tab */}
