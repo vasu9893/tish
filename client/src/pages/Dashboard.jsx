@@ -17,7 +17,8 @@ import {
   Search,
   RefreshCw,
   CheckCircle,
-  X
+  X,
+  Bell
 } from 'lucide-react'
 import Chats from './Chats'
 import FlowBuilder from './FlowBuilder'
@@ -25,6 +26,7 @@ import Settings from './Settings'
 import InstagramChat from '../components/InstagramChat'
 import InstagramAutomation from '../components/InstagramAutomation'
 import InstagramAnalytics from '../components/InstagramAnalytics'
+import NotificationDashboard from '../components/NotificationDashboard'
 import api from '../utils/api'
 
 const Dashboard = ({ user, onLogout }) => {
@@ -237,6 +239,9 @@ const Dashboard = ({ user, onLogout }) => {
                 )}
               </div>
 
+              {/* Notification Bell */}
+              <NotificationBell />
+
               {/* User Menu */}
               <div className="flex items-center space-x-3">
                 <Avatar className="w-8 h-8">
@@ -326,7 +331,7 @@ const Dashboard = ({ user, onLogout }) => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                  <TabsList className="grid w-full grid-cols-6 max-w-3xl mx-auto">
+                  <TabsList className="grid w-full grid-cols-7 max-w-4xl mx-auto">
           <TabsTrigger value="chats" className="flex items-center space-x-2">
             <MessageCircle className="w-4 h-4" />
             <span>Chats</span>
@@ -346,6 +351,10 @@ const Dashboard = ({ user, onLogout }) => {
           <TabsTrigger value="webhooks" className="flex items-center space-x-2">
             <BarChart3 className="w-4 h-4" />
             <span>Webhooks</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center space-x-2">
+            <Bell className="w-4 h-4" />
+            <span>Notifications</span>
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center space-x-2">
             <SettingsIcon className="w-4 h-4" />
@@ -530,6 +539,28 @@ const Dashboard = ({ user, onLogout }) => {
                 </Button>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Real-time Notifications</h2>
+                <p className="text-gray-600">Monitor Instagram webhook events and notifications in real-time</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </Button>
+              </div>
+            </div>
+            
+            <NotificationDashboard />
           </TabsContent>
 
           {/* Settings Tab */}
