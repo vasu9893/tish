@@ -316,7 +316,7 @@ router.get('/webhook', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   // Verify webhook
-  if (mode === 'subscribe' && token === process.env.INSTAGRAM_VERIFY_TOKEN) {
+  if (mode === 'subscribe' && token === process.env.META_VERIFY_TOKEN) {
     console.log('✅ Instagram webhook verified');
     res.status(200).send(challenge);
   } else {
