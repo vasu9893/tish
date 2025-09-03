@@ -1500,17 +1500,129 @@ router.get('/webhook', (req, res) => {
   }
 })
 
-// Webhook test endpoint for debugging
-router.get('/webhook/test', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Webhook endpoint is accessible',
-    timestamp: new Date().toISOString(),
-    verifyToken: process.env.META_VERIFY_TOKEN || 'instantchat_verify_token',
-    webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`,
-    note: 'Use this endpoint to test if your webhook is publicly accessible'
-  })
-})
+// Webhook status endpoint
+router.get('/webhook/status', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    
+    // Check if user has Instagram connection
+    const connection = await InstagramUser.findOne({ 
+      userId: userId,
+      isConnected: true 
+    });
+
+    if (!connection) {
+      return res.json({
+        success: true,
+        status: 'inactive',
+        message: 'No Instagram connection found',
+        webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`
+      });
+    }
+
+    // Check webhook events count
+    const eventCount = await WebhookEvent.countDocuments({ userId: userId });
+    const processedCount = await WebhookEvent.countDocuments({ 
+      userId: userId, 
+      isProcessed: true 
+    });
+
+    res.json({
+      success: true,
+      status: 'active',
+      message: 'Instagram webhook is active',
+      webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`,
+      stats: {
+        totalEvents: eventCount,
+        processedEvents: processedCount,
+        pendingEvents: eventCount - processedCount
+      },
+      connection: {
+        username: connection.username,
+        accountType: connection.accountType,
+        lastConnected: connection.lastConnected
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Webhook status error:', error);
+    res.status(500).json({
+      success: false,
+      status: 'error',
+      error: 'Failed to get webhook status'
+    });
+  }
+});
+
+// Webhook events endpoint
+router.get('/webhook/events', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { limit = 50, offset = 0 } = req.query;
+
+    const events = await WebhookEvent.find({ userId })
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(offset));
+
+    res.json({
+      success: true,
+      events: events,
+      count: events.length,
+      total: await WebhookEvent.countDocuments({ userId })
+    });
+
+  } catch (error) {
+    console.error('❌ Webhook events error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get webhook events'
+    });
+  }
+});
+
+// Webhook test endpoint
+router.post('/webhook/test', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { eventType, content, timestamp } = req.body;
+
+    // Create a test webhook event
+    const testEvent = new WebhookEvent({
+      eventType: eventType || 'test_webhook',
+      timestamp: timestamp ? new Date(timestamp) : new Date(),
+      content: {
+        text: content || 'Test webhook event'
+      },
+      userInfo: {
+        username: 'test_user',
+        userId: 'test_user_123'
+      },
+      pageId: 'test_page',
+      userId: userId,
+      isProcessed: true,
+      processingError: null,
+      flowResponse: 'Test event processed successfully'
+    });
+
+    await testEvent.save();
+
+    res.json({
+      success: true,
+      message: 'Test webhook event created successfully',
+      eventId: testEvent._id,
+      eventType: testEvent.eventType,
+      timestamp: testEvent.timestamp
+    });
+
+  } catch (error) {
+    console.error('❌ Webhook test error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create test webhook event'
+    });
+  }
+});
 
 // Instagram Basic Display API webhook for supported events (POST request)
 router.post('/webhook', async (req, res) => {

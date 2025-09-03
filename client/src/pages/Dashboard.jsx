@@ -53,7 +53,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   useEffect(() => {
     checkInstagramStatus()
-    
+
     // Refresh Instagram status every 30 seconds
     const interval = setInterval(checkInstagramStatus, 30000)
     
@@ -151,7 +151,7 @@ const Dashboard = ({ user, onLogout }) => {
                         <div className="flex items-center space-x-2 ml-2">
                           <span className="text-xs text-gray-400">
                             ({instagramStatus.username || instagramStatus.instagramUsername})
-                          </span>
+                  </span>
                           {instagramStatus.accountType && (
                             <Badge variant="outline" className="text-xs">
                               {instagramStatus.accountType}
@@ -287,7 +287,7 @@ const Dashboard = ({ user, onLogout }) => {
             <TabsTrigger value="webhooks" className="flex items-center space-x-2">
               <BarChart3 className="w-4 h-4" />
               <span>Webhooks</span>
-            </TabsTrigger>
+          </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center space-x-2">
             <SettingsIcon className="w-4 h-4" />
             <span>Settings</span>
