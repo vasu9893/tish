@@ -375,6 +375,84 @@ router.post('/debug/fix-current-user-permissions', authMiddleware, async (req, r
   }
 })
 
+// Fix endpoint to update Instagram connection user ID to current user
+router.post('/debug/fix-user-id-mismatch', authMiddleware, async (req, res) => {
+  try {
+    const currentUserId = req.user.id
+    
+    console.log('🔧 Fixing user ID mismatch for current user:', currentUserId)
+    
+    // Find all Instagram connections
+    const allConnections = await InstagramUser.find({}).sort({ lastConnected: -1 })
+    
+    console.log('📊 Found Instagram connections:', allConnections.map(conn => ({
+      id: conn._id,
+      userId: conn.userId,
+      username: conn.username,
+      isConnected: conn.isConnected,
+      lastConnected: conn.lastConnected,
+      permissions: conn.permissions
+    })))
+    
+    // Find the most recent connected Instagram account
+    const mostRecentConnected = allConnections.find(conn => conn.isConnected)
+    
+    if (!mostRecentConnected) {
+      return res.status(404).json({
+        success: false,
+        error: 'No connected Instagram account found'
+      })
+    }
+    
+    console.log('🎯 Most recent connected account:', {
+      id: mostRecentConnected._id,
+      currentUserId: mostRecentConnected.userId,
+      username: mostRecentConnected.username,
+      isConnected: mostRecentConnected.isConnected
+    })
+    
+    // Update the most recent connected account to use current user ID
+    const result = await InstagramUser.findOneAndUpdate(
+      { _id: mostRecentConnected._id },
+      { 
+        userId: currentUserId,
+        lastConnected: new Date()
+      },
+      { new: true }
+    )
+    
+    console.log('✅ User ID updated successfully:', {
+      oldUserId: mostRecentConnected.userId,
+      newUserId: result.userId,
+      username: result.username
+    })
+    
+    res.json({
+      success: true,
+      message: 'Instagram connection user ID fixed successfully!',
+      connection: {
+        id: result._id,
+        username: result.username,
+        instagramAccountId: result.instagramAccountId,
+        oldUserId: mostRecentConnected.userId,
+        newUserId: result.userId,
+        isConnected: result.isConnected,
+        permissions: result.permissions,
+        updatedAt: result.lastConnected
+      },
+      note: 'Your dashboard should now show Instagram as connected. Refresh the page to see the changes.'
+    })
+    
+  } catch (error) {
+    console.error('❌ Error fixing user ID mismatch:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fix user ID mismatch',
+      details: error.message
+    })
+  }
+})
+
 // Instagram Business Login OAuth - Start the flow
 router.get('/auth/instagram', (req, res) => {
   const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID
