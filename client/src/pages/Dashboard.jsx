@@ -36,6 +36,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('notifications')
   const [instagramStatus, setInstagramStatus] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successData, setSuccessData] = useState(null)
   const [error, setError] = useState(null)
@@ -52,22 +53,34 @@ const Dashboard = ({ user, onLogout }) => {
 
   useEffect(() => {
     checkInstagramStatus()
+    
+    // Refresh Instagram status every 30 seconds
+    const interval = setInterval(checkInstagramStatus, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   const checkInstagramStatus = async () => {
     try {
-      const response = await api.get('/api/instagram/debug/auth')
-      if (response.data.success && response.data.debug.instagramConnection) {
-        setInstagramStatus(response.data.debug.instagramConnection)
+      setIsLoadingStatus(true)
+      const response = await api.get('/api/instagram/status')
+      console.log('Instagram status response:', response.data)
+      
+      if (response.data.success && response.data.connected) {
+        setInstagramStatus(response.data.data)
         setIsConnected(true)
+        console.log('✅ Instagram is connected:', response.data.data)
       } else {
         setInstagramStatus(null)
         setIsConnected(false)
+        console.log('❌ Instagram is not connected. Status:', response.data)
       }
     } catch (error) {
       console.error('Failed to check Instagram status:', error)
       setInstagramStatus(null)
       setIsConnected(false)
+    } finally {
+      setIsLoadingStatus(false)
     }
   }
 
@@ -102,12 +115,46 @@ const Dashboard = ({ user, onLogout }) => {
               {/* Instagram Status */}
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
-                  <div className={`w-2 h-2 rounded-full ${instagramStatus ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                  <span className={`text-sm ${instagramStatus ? 'text-green-600' : 'text-gray-500'}`}>
-                    {instagramStatus ? 'Instagram Connected' : 'Instagram Not Connected'}
-                  </span>
+                  {isLoadingStatus ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                      <span className="text-sm text-blue-600">Checking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-gray-500'}`}>
+                        {isConnected ? 'Instagram Connected' : 'Instagram Not Connected'}
+                      </span>
+                      {instagramStatus && (
+                        <div className="flex items-center space-x-2 ml-2">
+                          <span className="text-xs text-gray-400">
+                            ({instagramStatus.username || instagramStatus.instagramUsername})
+                          </span>
+                          {instagramStatus.accountType && (
+                            <Badge variant="outline" className="text-xs">
+                              {instagramStatus.accountType}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-                {!instagramStatus && (
+                
+                {/* Refresh Button */}
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={checkInstagramStatus}
+                  disabled={isLoadingStatus}
+                  className="px-2 py-1"
+                  title="Refresh Instagram status"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isLoadingStatus ? 'animate-spin' : ''}`} />
+                </Button>
+                
+                {!isConnected && !isLoadingStatus && (
                   <Button 
                     size="sm" 
                     onClick={() => navigate('/connect-instagram')}
@@ -258,7 +305,10 @@ const Dashboard = ({ user, onLogout }) => {
               <div className="flex space-x-2">
                 <Button 
                   variant="outline"
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    checkInstagramStatus()
+                    window.location.reload()
+                  }}
                   className="flex items-center space-x-2"
                 >
                   <RefreshCw className="w-4 h-4" />
