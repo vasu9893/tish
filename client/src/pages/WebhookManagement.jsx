@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import WebhookDashboard from '@/components/WebhookDashboard';
-import WebhookNotifications from '@/components/WebhookNotifications';
-import WebhookTestingPanel from '@/components/WebhookTestingPanel';
-import WebhookMonitoringDashboard from '@/components/WebhookMonitoringDashboard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Separator } from '../components/ui/separator';
+import WebhookDashboard from '../components/WebhookDashboard';
+import WebhookNotifications from '../components/WebhookNotifications';
+import WebhookTestingPanel from '../components/WebhookTestingPanel';
+import WebhookMonitoringDashboard from '../components/WebhookMonitoringDashboard';
 
 const WebhookManagement = () => {
   const [activeTab, setActiveTab] = useState('overview');
