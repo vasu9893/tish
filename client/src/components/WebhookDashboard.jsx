@@ -19,7 +19,7 @@ import {
   Filter,
   Search
 } from 'lucide-react';
-import { api } from '../utils/api';
+import api from '../utils/api';
 import { toast } from 'sonner';
 
 const WebhookDashboard = () => {
