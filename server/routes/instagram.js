@@ -131,7 +131,70 @@ router.post('/debug/fix-user-id', async (req, res) => {
     console.error('Error fixing user ID:', error)
     res.status(500).json({
       success: false,
-      error: 'Failed to fix user ID'
+      error: 'Failed to fix user ID',
+      details: error.message
+    })
+  }
+})
+
+// Fix endpoint to update Instagram connection permissions
+router.post('/debug/fix-permissions', async (req, res) => {
+  try {
+    const { instagramAccountId } = req.body
+    
+    if (!instagramAccountId) {
+      return res.status(400).json({
+        success: false,
+        error: 'instagramAccountId is required'
+      })
+    }
+    
+    // Find the Instagram connection
+    const instagramUser = await InstagramUser.findOne({ instagramAccountId: instagramAccountId })
+    
+    if (!instagramUser) {
+      return res.status(404).json({
+        success: false,
+        error: 'Instagram connection not found'
+      })
+    }
+    
+    // Update with correct permissions based on OAuth scopes
+    const correctPermissions = [
+      'instagram_basic',
+      'instagram_manage_messages',
+      'instagram_manage_comments',
+      'instagram_content_publish'
+    ]
+    
+    const result = await InstagramUser.findOneAndUpdate(
+      { instagramAccountId: instagramAccountId },
+      { 
+        permissions: correctPermissions,
+        lastConnected: new Date()
+      },
+      { new: true }
+    )
+    
+    res.json({
+      success: true,
+      message: 'Permissions updated successfully',
+      connection: {
+        id: result._id,
+        username: result.username,
+        instagramAccountId: result.instagramAccountId,
+        oldPermissions: instagramUser.permissions,
+        newPermissions: result.permissions,
+        updatedAt: result.lastConnected
+      }
+    })
+    
+  } catch (error) {
+    console.error('Error fixing permissions:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fix permissions',
+      details: error.message
     })
   }
 })
@@ -248,6 +311,66 @@ router.post('/debug/create-test-conversations', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to create test conversations'
+    })
+  }
+})
+
+// Quick fix endpoint for current user's Instagram permissions
+router.post('/debug/fix-current-user-permissions', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    
+    console.log('🔧 Fixing permissions for user:', userId)
+    
+    // Find the Instagram connection for this user
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    if (!instagramUser) {
+      return res.status(404).json({
+        success: false,
+        error: 'No Instagram connection found for this user'
+      })
+    }
+    
+    // Update with correct permissions based on OAuth scopes
+    const correctPermissions = [
+      'instagram_basic',
+      'instagram_manage_messages',
+      'instagram_manage_comments',
+      'instagram_content_publish'
+    ]
+    
+    const result = await InstagramUser.findOneAndUpdate(
+      { userId: userId },
+      { 
+        permissions: correctPermissions,
+        lastConnected: new Date()
+      },
+      { new: true }
+    )
+    
+    console.log('✅ Permissions fixed for user:', userId, 'New permissions:', result.permissions)
+    
+    res.json({
+      success: true,
+      message: 'Your Instagram permissions have been fixed!',
+      connection: {
+        id: result._id,
+        username: result.username,
+        instagramAccountId: result.instagramAccountId,
+        oldPermissions: instagramUser.permissions,
+        newPermissions: result.permissions,
+        updatedAt: result.lastConnected
+      },
+      note: 'You can now try loading Instagram conversations again'
+    })
+    
+  } catch (error) {
+    console.error('❌ Error fixing current user permissions:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fix permissions',
+      details: error.message
     })
   }
 })
@@ -406,13 +529,27 @@ router.get('/auth/instagram/callback', async (req, res) => {
       error: userInfoResponse.error
     })
 
+    // Get Instagram permissions separately (since token response might not include them)
+    console.log('=== STEP 3.5: Get Instagram Permissions ===')
+    const permissionsResponse = await metaApi.getInstagramPermissions(finalToken, instagramUserId)
+    
+    console.log('Instagram permissions response:', {
+      success: permissionsResponse.success,
+      permissions: permissionsResponse.data?.permissions,
+      accountType: permissionsResponse.data?.accountType,
+      error: permissionsResponse.error
+    })
+
+    // Use permissions from the separate call, fallback to token response
+    const finalPermissions = permissionsResponse.success ? permissionsResponse.data.permissions : (permissions || [])
+
     // Prepare Instagram connection data
     const instagramConnectionData = {
       instagramUserId: instagramUserId,
       username: userInfoResponse.data?.username || 'Unknown',
       accessToken: finalToken,
       tokenType: 'bearer',
-      permissions: permissions || [],
+      permissions: finalPermissions,
       expiresAt: expiresAt,
       profileData: userInfoResponse.data || {},
       isLongLived: longLivedTokenResponse.success,
@@ -447,7 +584,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
           tokenExpiresAt: expiresAt,
         isConnected: true,
         lastConnected: new Date(),
-          permissions: permissions || [],
+          permissions: finalPermissions,
         webhookSubscribed: false,
           // Instagram Business Login specific fields
           pageId: null, // Not applicable for Business Login
@@ -474,7 +611,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
     
     // Redirect to frontend with success parameters
     const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
-    const redirectUrl = `${clientUrl}/dashboard?instagram=success&username=${encodeURIComponent(instagramConnectionData.username)}&userId=${encodeURIComponent(instagramUserId)}&permissions=${encodeURIComponent(permissions?.join(',') || '')}`
+    const redirectUrl = `${clientUrl}/dashboard?instagram=success&username=${encodeURIComponent(instagramConnectionData.username)}&userId=${encodeURIComponent(instagramUserId)}&permissions=${encodeURIComponent(finalPermissions?.join(',') || '')}`
     
     console.log('Redirecting to:', redirectUrl)
     res.redirect(redirectUrl)

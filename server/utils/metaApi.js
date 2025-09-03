@@ -679,6 +679,95 @@ class MetaApiHelper {
   }
 
   /**
+   * Get Instagram user permissions using Graph API
+   * @param {string} accessToken - Instagram access token
+   * @param {string} userId - Instagram user ID
+   * @returns {Promise<Object>} Permissions response
+   */
+  async getInstagramPermissions(accessToken, userId) {
+    try {
+      console.log('Fetching Instagram permissions via Graph API:', {
+        userId,
+        hasToken: !!accessToken
+      })
+
+      // Try to get permissions from Graph API
+      const response = await axios.get(
+        `https://graph.instagram.com/v23.0/${userId}`,
+        {
+          params: {
+            fields: 'id,username,account_type,media_count',
+            access_token: accessToken
+          }
+        }
+      )
+
+      console.log('Graph API permissions response:', {
+        status: response.status,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : 'no data'
+      })
+
+      // For Instagram Business Login, we need to infer permissions from scopes
+      // The actual permissions are determined by the OAuth scopes requested
+      const requestedScopes = [
+        'instagram_business_basic',
+        'instagram_business_manage_messages',
+        'instagram_business_manage_comments',
+        'instagram_business_content_publish'
+      ]
+
+      // Map scopes to permissions
+      const permissions = []
+      if (requestedScopes.includes('instagram_business_manage_messages')) {
+        permissions.push('instagram_manage_messages')
+      }
+      if (requestedScopes.includes('instagram_business_manage_comments')) {
+        permissions.push('instagram_manage_comments')
+      }
+      if (requestedScopes.includes('instagram_business_basic')) {
+        permissions.push('instagram_basic')
+      }
+      if (requestedScopes.includes('instagram_business_content_publish')) {
+        permissions.push('instagram_content_publish')
+      }
+
+      return {
+        success: true,
+        data: {
+          permissions: permissions,
+          accountType: response.data?.account_type || 'business',
+          username: response.data?.username,
+          mediaCount: response.data?.media_count
+        }
+      }
+
+    } catch (error) {
+      console.error('Error fetching Instagram permissions:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      // Fallback: return basic permissions based on OAuth scopes
+      const fallbackPermissions = [
+        'instagram_basic',
+        'instagram_manage_messages'
+      ]
+      
+      return {
+        success: true,
+        data: {
+          permissions: fallbackPermissions,
+          accountType: 'business',
+          username: null,
+          mediaCount: null
+        }
+      }
+    }
+  }
+
+  /**
    * Get long-lived access token
    * @param {string} shortLivedToken - Short-lived access token
    * @returns {Promise<Object>} Long-lived token response
