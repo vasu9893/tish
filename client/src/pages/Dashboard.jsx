@@ -63,8 +63,10 @@ const Dashboard = ({ user, onLogout }) => {
   const checkInstagramStatus = async () => {
     try {
       setIsLoadingStatus(true)
+      console.log('🔍 Checking Instagram status...')
+      
       const response = await api.get('/api/instagram/status')
-      console.log('Instagram status response:', response.data)
+      console.log('📱 Instagram status response:', response.data)
       
       if (response.data.success && response.data.connected) {
         setInstagramStatus(response.data.data)
@@ -74,11 +76,30 @@ const Dashboard = ({ user, onLogout }) => {
         setInstagramStatus(null)
         setIsConnected(false)
         console.log('❌ Instagram is not connected. Status:', response.data)
+        
+        // Log more details for debugging
+        if (response.data.data) {
+          console.log('📊 Connection details:', {
+            username: response.data.data.username,
+            instagramUsername: response.data.data.instagramUsername,
+            accountType: response.data.data.accountType,
+            lastConnected: response.data.data.lastConnected,
+            isExpired: response.data.data.isExpired
+          })
+        }
       }
     } catch (error) {
-      console.error('Failed to check Instagram status:', error)
+      console.error('❌ Failed to check Instagram status:', error)
       setInstagramStatus(null)
       setIsConnected(false)
+      
+      // Log more error details
+      if (error.response) {
+        console.error('📡 Response error:', {
+          status: error.response.status,
+          data: error.response.data
+        })
+      }
     } finally {
       setIsLoadingStatus(false)
     }
@@ -313,6 +334,14 @@ const Dashboard = ({ user, onLogout }) => {
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Refresh</span>
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={checkInstagramStatus}
+                  className="flex items-center space-x-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Test Connection</span>
                 </Button>
               </div>
             </div>
