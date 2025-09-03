@@ -1860,19 +1860,53 @@ async function storeNotification(notification, pageId) {
 // Broadcast notification via Socket.IO
 function broadcastNotification(notification, pageId) {
   try {
-    // This would integrate with your Socket.IO service
-    // For now, we'll log it
-    console.log('📡 Broadcasting notification:', {
-      notificationId: notification.id,
-      pageId: pageId,
-      eventType: notification.eventType
-    });
+    // Get the Socket.IO instance from the server
+    const server = require('../server')
+    const io = server.getIO()
     
-    // TODO: Integrate with Socket.IO service
-    // socketIOService.broadcastToPage(pageId, 'instagram_event', notification);
+    if (!io) {
+      console.log('📡 Socket.IO not available, logging notification instead')
+      console.log('📡 Broadcasting notification:', {
+        notificationId: notification.id,
+        pageId: pageId,
+        eventType: notification.eventType
+      })
+      return
+    }
+    
+    // Find the Instagram connection to get the userId
+    InstagramUser.findOne({ pageId: pageId, isConnected: true })
+      .then(connection => {
+        if (connection && connection.userId) {
+          // Emit to specific user
+          io.to(`user_${connection.userId}`).emit('new_webhook_event', {
+            type: 'instagram_webhook',
+            event: notification,
+            timestamp: new Date().toISOString()
+          })
+          
+          // Also emit to all clients for general updates
+          io.emit('webhook_event_broadcast', {
+            type: 'instagram_webhook',
+            event: notification,
+            pageId: pageId,
+            timestamp: new Date().toISOString()
+          })
+          
+          console.log('📡 Broadcasting notification:', {
+            notificationId: notification.id,
+            pageId: pageId,
+            userId: connection.userId,
+            eventType: notification.eventType
+          })
+        }
+      })
+      .catch(error => {
+        console.error('❌ Error finding connection for broadcast:', error)
+      })
     
   } catch (error) {
-    console.error('❌ Error broadcasting notification:', error);
+    console.error('❌ Error broadcasting notification:', error)
   }
 }
 

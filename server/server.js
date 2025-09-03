@@ -4,6 +4,7 @@ const socketIo = require('socket.io')
 const cors = require('cors')
 const dotenv = require('dotenv')
 const connectDB = require('./config/db')
+const jwt = require('jsonwebtoken') // Added for Socket.IO authentication
 
 // Initialize queue system (temporarily disabled for debugging)
 // const { serverAdapter: bullBoardAdapter } = require('./config/bullBoard')
@@ -87,267 +88,47 @@ console.log('🔌 Webhook processor connected to Socket.IO for real-time broadca
 // app.use('/admin/queues', bullBoardAdapter.getRouter())
 
 // Socket.io connection handling
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token
-  
-  // For development/MVP, allow connections without tokens
-  // In production, you would require a valid JWT token here
-  if (!token) {
-    console.log('⚠️ Socket.IO: No token provided, allowing connection for development')
-    socket.userId = 'dev_user_' + Date.now()
-    socket.isDevelopment = true
-  } else {
-    // In production, verify JWT token here
-    // const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    socket.userId = 'user_' + Date.now()
-    socket.isDevelopment = false
-  }
-  
-  next()
-})
-
-// Store connected clients for notification management
-const connectedClients = new Map()
-
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id)
+  console.log('🔌 New client connected:', socket.id)
   
-  let clientInfo = {
-    socket,
-    userId: null,
-    authenticated: false,
-    subscriptions: new Set(),
-    lastHeartbeat: Date.now()
-  }
-  
-  // Join default room
-  socket.join('general')
-  
-  // ===== NOTIFICATION EVENT HANDLERS =====
-  
-  // Handle authentication for notifications
-  socket.on('authenticate', async (data) => {
+  // Handle user authentication
+  socket.on('authenticate', (data) => {
     try {
-      console.log('🔐 Socket.IO authentication request:', { socketId: socket.id, userId: data.userId, isDevelopment: socket.isDevelopment })
+      // Verify JWT token
+      const decoded = jwt.verify(data.token, process.env.JWT_SECRET || 'fallback_secret')
+      socket.userId = decoded.user.id
+      socket.username = decoded.user.username
       
-      // For development, allow authentication without tokens
-      if (socket.isDevelopment) {
-        clientInfo.userId = data.userId || socket.userId
-        clientInfo.authenticated = true
-        connectedClients.set(clientInfo.userId, clientInfo)
-        
-        console.log('✅ Development client authenticated:', clientInfo.userId, 'Socket:', socket.id)
-      } else {
-        // In production, verify JWT token here
-        // const decoded = jwt.verify(data.token, process.env.JWT_SECRET)
-        clientInfo.userId = data.userId || socket.userId
-        clientInfo.authenticated = true
-        connectedClients.set(clientInfo.userId, clientInfo)
-        
-        console.log('✅ Production client authenticated:', clientInfo.userId, 'Socket:', socket.id)
-      }
+      // Join user-specific room
+      socket.join(`user_${socket.userId}`)
       
-      // Send success response
-      socket.emit('auth_success', {
-        message: 'Authentication successful',
-        userId: clientInfo.userId,
-        timestamp: Date.now()
-      })
-      
-      // Send connection info
-      socket.emit('connection_info', {
-        status: 'connected',
-        subscriptions: Array.from(clientInfo.subscriptions),
-        timestamp: Date.now()
-      })
+      console.log(`✅ User authenticated: ${socket.username} (${socket.userId})`)
+      socket.emit('authenticated', { success: true, user: decoded.user })
       
     } catch (error) {
-      console.error('❌ Socket.IO authentication failed:', error.message)
-      
-      socket.emit('auth_failed', {
-        reason: 'Invalid token',
-        timestamp: Date.now()
-      })
-      
-      socket.disconnect(true)
+      console.error('❌ Socket authentication failed:', error.message)
+      socket.emit('authenticated', { success: false, error: 'Authentication failed' })
     }
   })
   
-  // Handle event subscriptions
-  socket.on('subscribe', (data) => {
-    if (!clientInfo.authenticated) {
-      socket.emit('error', {
-        message: 'Not authenticated',
-        timestamp: Date.now()
-      })
-      return
-    }
-    
-    console.log('📝 Client subscription request:', { userId: clientInfo.userId, eventTypes: data.eventTypes })
-    
-    // Add event types to subscriptions
-    data.eventTypes.forEach(eventType => {
-      clientInfo.subscriptions.add(eventType)
-    })
-    
-    console.log('📝 Client subscribed to:', Array.from(clientInfo.subscriptions))
-    
-    // Send confirmation
-    socket.emit('subscription_confirmed', {
-      eventTypes: Array.from(clientInfo.subscriptions),
-      timestamp: Date.now()
-    })
+  // Handle Instagram connection status updates
+  socket.on('instagram_status_update', (data) => {
+    console.log('📱 Instagram status update:', data)
+    // Broadcast to all connected clients
+    io.emit('instagram_status_changed', data)
   })
   
-  // Handle unsubscription
-  socket.on('unsubscribe', (data) => {
-    if (!clientInfo.authenticated) {
-      socket.emit('error', {
-        message: 'Not authenticated',
-        timestamp: Date.now()
-      })
-      return
-    }
-    
-    console.log('📝 Client unsubscription request:', { userId: clientInfo.userId, eventTypes: data.eventTypes })
-    
-    // Remove event types from subscriptions
-    data.eventTypes.forEach(eventType => {
-      clientInfo.subscriptions.delete(eventType)
-    })
-    
-    console.log('📝 Client subscriptions after unsubscribe:', Array.from(clientInfo.subscriptions))
-    
-    // Send confirmation
-    socket.emit('subscription_confirmed', {
-      eventTypes: Array.from(clientInfo.subscriptions),
-      timestamp: Date.now()
-    })
-  })
-  
-  // Handle get subscriptions request
-  socket.on('get_subscriptions', (data) => {
-    if (!clientInfo.authenticated) {
-      socket.emit('error', {
-        message: 'Not authenticated',
-        timestamp: Date.now()
-      })
-      return
-    }
-    
-    console.log('📝 Client requesting subscriptions:', { userId: clientInfo.userId })
-    
-    socket.emit('subscription_confirmed', {
-      eventTypes: Array.from(clientInfo.subscriptions),
-      timestamp: Date.now()
-    })
-  })
-  
-  // Handle test connection
-  socket.on('test_connection', (data) => {
-    if (!clientInfo.authenticated) {
-      socket.emit('error', {
-        message: 'Not authenticated',
-        timestamp: Date.now()
-      })
-      return
-    }
-    
-    console.log('🧪 Client testing connection:', { userId: clientInfo.userId, socketId: socket.id })
-    
-    socket.emit('connection_info', {
-      status: 'connected',
-      subscriptions: Array.from(clientInfo.subscriptions),
-      timestamp: Date.now()
-    })
-  })
-  
-  // Handle heartbeat
-  socket.on('heartbeat', (data) => {
-    clientInfo.lastHeartbeat = Date.now()
-    
-    console.log('💓 Heartbeat received:', { userId: clientInfo.userId, clientId: data.clientId })
-    
-    // Send heartbeat response
-    socket.emit('heartbeat_response', {
-      timestamp: Date.now(),
-      serverTime: new Date().toISOString()
-    })
-  })
-  
-  // ===== EXISTING MESSAGE HANDLERS =====
-  
-  // Handle message sending
-  socket.on('sendMessage', async (messageData) => {
-    try {
-      // Save message to database
-      const Message = require('./models/Message')
-      const newMessage = new Message({
-        sender: messageData.sender,
-        content: messageData.content,
-        userId: messageData.userId,
-        timestamp: new Date(),
-        source: messageData.source || 'local',
-        room: messageData.room || 'general'
-      })
-      
-      await newMessage.save()
-      
-      // Broadcast message to all clients with source info
-      io.emit('message', {
-        id: newMessage._id.toString(),
-        sender: newMessage.sender,
-        content: newMessage.content,
-        userId: newMessage.userId,
-        timestamp: newMessage.timestamp,
-        source: newMessage.source,
-        room: newMessage.room,
-        isFromInstagram: newMessage.isFromInstagram,
-        isToInstagram: newMessage.isToInstagram
-      })
-    } catch (error) {
-      console.error('Error saving message:', error)
+  // Handle webhook event notifications
+  socket.on('webhook_event_received', (data) => {
+    console.log('🔔 Webhook event received:', data)
+    // Broadcast to specific user
+    if (socket.userId) {
+      io.to(`user_${socket.userId}`).emit('new_webhook_event', data)
     }
   })
   
-  // Handle message history request
-  socket.on('getMessageHistory', async () => {
-    try {
-      const Message = require('./models/Message')
-      const messages = await Message.find()
-        .sort({ timestamp: 1 })
-        .limit(50)
-      
-      socket.emit('messageHistory', messages.map(msg => ({
-        id: msg._id.toString(),
-        sender: msg.sender,
-        content: msg.content,
-        userId: msg.userId,
-        timestamp: msg.timestamp,
-        source: msg.source || 'local',
-        room: msg.room || 'general',
-        isFromInstagram: msg.isFromInstagram || false,
-        isToInstagram: msg.isToInstagram || false
-      })))
-    } catch (error) {
-      console.error('Error fetching message history:', error)
-    }
-  })
-  
-  // Handle disconnect
-  socket.on('disconnect', (reason) => {
-    console.log('User disconnected:', socket.id, 'Reason:', reason)
-    
-    // Clean up client info
-    if (clientInfo.userId) {
-      connectedClients.delete(clientInfo.userId)
-      console.log('🧹 Cleaned up client:', clientInfo.userId)
-    }
-  })
-  
-  // Handle errors
-  socket.on('error', (error) => {
-    console.error('❌ Socket.IO error:', error)
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id)
   })
 })
 
@@ -657,3 +438,6 @@ process.on('SIGINT', async () => {
 
 // Export for Vercel
 module.exports = app
+
+// Export Socket.IO instance for use in other modules
+server.getIO = () => io

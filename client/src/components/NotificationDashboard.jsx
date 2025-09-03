@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, MessageSquare, Heart, AtSign, Play, Filter, Search, MoreHorizontal, RefreshCw, Wifi, WifiOff, Instagram, Users, TrendingUp, AlertCircle } from 'lucide-react';
+import { Bell, MessageSquare, Heart, AtSign, Play, Filter, Search, MoreHorizontal, RefreshCw, Wifi, WifiOff, Instagram, Users, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,6 +9,7 @@ import { Separator } from './ui/separator';
 import useNotificationStore from '../stores/notificationStore';
 import socketIOService from '../services/websocketService';
 import { toast } from 'sonner';
+import io from 'socket.io-client';
 
 const NotificationDashboard = () => {
   const [showAll, setShowAll] = useState(false);
@@ -35,19 +36,99 @@ const NotificationDashboard = () => {
   } = useNotificationStore();
 
   useEffect(() => {
-    // Listen for connection status changes
-    const unsubscribe = useNotificationStore.subscribe(
-      (state) => state.isConnected,
-      (isConnected) => {
-        setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+    loadNotifications()
+    setupSocketConnection()
+    
+    return () => {
+      if (socket) {
+        socket.disconnect()
       }
-    );
+    }
+  }, [])
+
+  const setupSocketConnection = () => {
+    try {
+      // Connect to Socket.IO server
+      const newSocket = io('https://tish-production.up.railway.app', {
+        transports: ['websocket', 'polling']
+      })
+
+      newSocket.on('connect', () => {
+        console.log('🔌 Connected to Socket.IO server')
+        setIsConnected(true)
+        
+        // Authenticate with JWT token
+        const token = localStorage.getItem('token')
+        if (token) {
+          newSocket.emit('authenticate', { token })
+        }
+      })
+
+      newSocket.on('authenticated', (data) => {
+        if (data.success) {
+          console.log('✅ Socket.IO authenticated:', data.user.username)
+        } else {
+          console.error('❌ Socket.IO authentication failed:', data.error)
+        }
+      })
+
+      // Listen for new webhook events
+      newSocket.on('new_webhook_event', (data) => {
+        console.log('🔔 New webhook event received:', data)
+        if (data.type === 'instagram_webhook') {
+          // Add new notification to the list
+          setNotifications(prev => [data.event, ...prev])
+          // Update stats
+          updateStats([data.event, ...notifications])
+          
+          // Show toast notification
+          showToast(`New ${data.event.eventType} event received!`)
+        }
+      })
+
+      // Listen for webhook event broadcasts
+      newSocket.on('webhook_event_broadcast', (data) => {
+        console.log('📡 Webhook event broadcast:', data)
+        if (data.type === 'instagram_webhook') {
+          // Update notifications if not already added
+          setNotifications(prev => {
+            const exists = prev.find(n => n.id === data.event.id)
+            if (!exists) {
+              return [data.event, ...prev]
+            }
+            return prev
+          })
+        }
+      })
+
+      newSocket.on('disconnect', () => {
+        console.log('🔌 Disconnected from Socket.IO server')
+        setIsConnected(false)
+      })
+
+      newSocket.on('error', (error) => {
+        console.error('❌ Socket.IO error:', error)
+      })
+
+      setSocket(newSocket)
+      
+    } catch (error) {
+      console.error('❌ Failed to setup Socket.IO connection:', error)
+    }
+  }
+
+  const showToast = (message) => {
+    // Create a simple toast notification
+    const toast = document.createElement('div')
+    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50'
+    toast.textContent = message
+    document.body.appendChild(toast)
     
-    // Update stats when notifications change
-    updateStats();
-    
-    return () => unsubscribe();
-  }, [notifications]);
+    // Remove after 3 seconds
+    setTimeout(() => {
+      document.body.removeChild(toast)
+    }, 3000)
+  }
 
   const updateStats = () => {
     const today = new Date();
@@ -215,35 +296,36 @@ const NotificationDashboard = () => {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Bell className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold">Instagram Webhook Events</h3>
-          {unreadCount > 0 && (
-            <Badge variant="destructive" className="ml-2">
-              {unreadCount} new
-            </Badge>
-          )}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Instagram Webhook Events</h2>
+          <p className="text-gray-600">Real-time notifications from Instagram webhooks and automated responses</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant={connectionStatus === 'connected' ? 'default' : 'secondary'} className="text-xs">
-            {getConnectionStatusText()}
-          </Badge>
-          <Button
+        <div className="flex items-center space-x-4">
+          {/* Socket.IO Connection Status */}
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+              {isConnected ? 'Live Connected' : 'Live Disconnected'}
+            </span>
+          </div>
+          
+          <Button 
+            onClick={loadNotifications} 
+            disabled={isLoading}
             variant="outline"
             size="sm"
-            onClick={handleReconnect}
-            disabled={connectionStatus === 'connecting'}
           >
-            <RefreshCw className="w-4 h-4 mr-1" />
-            Reconnect
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
-          <Button
+          
+          <Button 
+            onClick={markAllAsRead}
             variant="outline"
             size="sm"
-            onClick={handleMarkAllRead}
-            disabled={unreadCount === 0}
           >
+            <CheckCircle className="w-4 h-4 mr-2" />
             Mark All Read
           </Button>
         </div>
