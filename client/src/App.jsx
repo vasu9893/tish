@@ -5,6 +5,7 @@ import Signup from './pages/Signup'
 import ConnectInstagram from './pages/ConnectInstagram'
 import Dashboard from './pages/Dashboard'
 import FlowBuilder from './pages/FlowBuilder'
+import WebhookManagement from './pages/WebhookManagement'
 import OAuthCallback from './components/OAuthCallback'
 import './App.css'
 
@@ -85,6 +86,14 @@ function App() {
           element={
             isAuthenticated ? 
             <FlowBuilder user={user} onLogout={handleLogout} /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/webhook-management" 
+          element={
+            isAuthenticated ? 
+            <WebhookManagement user={user} onLogout={handleLogout} /> : 
             <Navigate to="/login" replace />
           } 
         />

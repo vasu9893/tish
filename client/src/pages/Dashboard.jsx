@@ -261,10 +261,72 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
+      {/* Quick Navigation */}
+      <div className="bg-gray-50 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center space-x-6 py-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('chats')}
+              className={`${activeTab === 'chats' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chats
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('instagram')}
+              className={`${activeTab === 'instagram' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Instagram className="w-4 h-4 mr-2" />
+              Instagram
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('flows')}
+              className={`${activeTab === 'flows' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Bot className="w-4 h-4 mr-2" />
+              Flows
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('automation')}
+              className={`${activeTab === 'automation' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Automation
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('webhooks')}
+              className={`${activeTab === 'webhooks' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Webhooks
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('settings')}
+              className={`${activeTab === 'settings' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <SettingsIcon className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                  <TabsList className="grid w-full grid-cols-5 max-w-2xl mx-auto">
+                  <TabsList className="grid w-full grid-cols-6 max-w-3xl mx-auto">
           <TabsTrigger value="chats" className="flex items-center space-x-2">
             <MessageCircle className="w-4 h-4" />
             <span>Chats</span>
@@ -280,6 +342,10 @@ const Dashboard = ({ user, onLogout }) => {
           <TabsTrigger value="automation" className="flex items-center space-x-2">
             <Zap className="w-4 h-4" />
             <span>Automation</span>
+          </TabsTrigger>
+          <TabsTrigger value="webhooks" className="flex items-center space-x-2">
+            <BarChart3 className="w-4 h-4" />
+            <span>Webhooks</span>
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center space-x-2">
             <SettingsIcon className="w-4 h-4" />
@@ -382,6 +448,88 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
             </div>
             <InstagramAutomation />
+          </TabsContent>
+
+          {/* Webhooks Tab */}
+          <TabsContent value="webhooks" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Webhook Management</h2>
+                <p className="text-gray-600">Manage Instagram webhooks, testing, and monitoring</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate('/webhook-management')}
+                  className="flex items-center space-x-2"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Full Dashboard</span>
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </Button>
+              </div>
+            </div>
+            
+            {/* Quick Webhook Status */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">System Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">✅ Healthy</div>
+                  <p className="text-xs text-muted-foreground">Webhook system operational</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">0</div>
+                  <p className="text-xs text-muted-foreground">Instagram accounts</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Events Processed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600">0</div>
+                  <p className="text-xs text-muted-foreground">Webhook events</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-lg border p-6">
+              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button 
+                  onClick={() => navigate('/webhook-management')}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Open Webhook Dashboard
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate('/webhook-management?tab=testing')}
+                  className="w-full"
+                >
+                  🧪 Test Webhooks
+                </Button>
+              </div>
+            </div>
           </TabsContent>
 
           {/* Settings Tab */}

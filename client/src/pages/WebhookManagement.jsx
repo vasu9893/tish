@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,23 @@ import WebhookMonitoringDashboard from '@/components/WebhookMonitoringDashboard'
 
 const WebhookManagement = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for tab parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam && ['overview', 'dashboard', 'testing', 'monitoring', 'notifications'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
+
+  // Update URL when tab changes
+  const handleTabChange = (value) => {
+    setActiveTab(value);
+    navigate(`/webhook-management?tab=${value}`, { replace: true });
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -135,7 +153,7 @@ const WebhookManagement = () => {
       </Card>
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
