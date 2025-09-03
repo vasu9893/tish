@@ -13,41 +13,64 @@ router.post('/login', async (req, res) => {
 
     // Validate input
     if (!username || !password) {
-      return res.status(400).json({ message: 'Please provide username and password' })
-    }
-
-    // For MVP, we'll use dummy authentication
-    // In production, verify against database
-    if (username && password) {
-      // Generate dummy JWT token
-      const payload = {
-        user: {
-          id: '1',
-          username: username,
-          email: `${username}@example.com`
-        }
-      }
-
-      const token = jwt.sign(
-        payload, 
-        process.env.JWT_SECRET || 'fallback_secret',
-        { expiresIn: '24h' }
-      )
-
-      res.json({
-        token,
-        user: {
-          id: '1',
-          username: username,
-          email: `${username}@example.com`
-        }
+      return res.status(400).json({ 
+        success: false,
+        error: 'Please provide username and password' 
       })
-    } else {
-      res.status(400).json({ message: 'Invalid credentials' })
     }
+
+    // Find user by username or email
+    const user = await User.findOne({ 
+      $or: [{ username }, { email: username }] 
+    })
+
+    if (!user) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid credentials' 
+      })
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    if (!isPasswordValid) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid credentials' 
+      })
+    }
+
+    // Generate JWT token
+    const payload = {
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
+    }
+
+    const token = jwt.sign(
+      payload, 
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '24h' }
+    )
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt
+      }
+    })
   } catch (error) {
     console.error('Login error:', error)
-    res.status(500).json({ message: 'Server error' })
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error' 
+    })
   }
 })
 
@@ -60,13 +83,19 @@ router.post('/register', async (req, res) => {
 
     // Validate input
     if (!username || !email || !password) {
-      return res.status(400).json({ message: 'Please provide all required fields' })
+      return res.status(400).json({ 
+        success: false,
+        error: 'Please provide all required fields' 
+      })
     }
 
     // Check if user already exists
-    let user = await User.findOne({ $or: [{ email }, { username }] })
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' })
+    let existingUser = await User.findOne({ $or: [{ email }, { username }] })
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'User already exists' 
+      })
     }
 
     // Hash password
@@ -74,7 +103,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt)
 
     // Create new user
-    user = new User({
+    const user = new User({
       username,
       email,
       password: hashedPassword
@@ -85,7 +114,9 @@ router.post('/register', async (req, res) => {
     // Generate JWT token
     const payload = {
       user: {
-        id: user.id
+        id: user.id,
+        username: user.username,
+        email: user.email
       }
     }
 
@@ -96,16 +127,21 @@ router.post('/register', async (req, res) => {
     )
 
     res.json({
+      success: true,
       token,
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        createdAt: user.createdAt
       }
     })
   } catch (error) {
     console.error('Registration error:', error)
-    res.status(500).json({ message: 'Server error' })
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error' 
+    })
   }
 })
 
@@ -114,18 +150,82 @@ router.post('/register', async (req, res) => {
 // @access  Private
 router.get('/me', async (req, res) => {
   try {
-    // For MVP, return dummy user data
-    // In production, get from req.user (set by auth middleware)
+    // Get user from auth middleware
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Not authenticated' 
+      })
+    }
+
+    // Find user in database
+    const user = await User.findById(req.user.id).select('-password')
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      })
+    }
+
     res.json({
+      success: true,
       user: {
-        id: '1',
-        username: 'demo_user',
-        email: 'demo@example.com'
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt
       }
     })
   } catch (error) {
     console.error('Get user error:', error)
-    res.status(500).json({ message: 'Server error' })
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error' 
+    })
+  }
+})
+
+// @route   POST /api/auth/verify
+// @desc    Verify JWT token
+// @access  Public
+router.post('/verify', async (req, res) => {
+  try {
+    const { token } = req.body
+
+    if (!token) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Token is required' 
+      })
+    }
+
+    // Verify JWT token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret')
+    
+    // Find user in database
+    const user = await User.findById(decoded.user.id).select('-password')
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      })
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt
+      }
+    })
+  } catch (error) {
+    console.error('Token verification error:', error)
+    res.status(401).json({ 
+      success: false,
+      error: 'Invalid token' 
+    })
   }
 })
 

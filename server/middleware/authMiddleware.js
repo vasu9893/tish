@@ -16,46 +16,66 @@ const authMiddleware = (req, res, next) => {
     
     if (!token) {
       console.log('❌ No token provided')
-      return res.status(401).json({ message: 'No token, authorization denied' })
+      return res.status(401).json({ 
+        success: false,
+        error: 'No token, authorization denied' 
+      })
     }
 
-    // For MVP, accept any token (including real JWT tokens)
-    // In production, verify JWT properly with process.env.JWT_SECRET
-    if (token.startsWith('dummy_jwt_token_')) {
-      // Handle dummy tokens for testing
+    // Verify JWT token
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret')
+      
+      if (!decoded.user || !decoded.user.id) {
+        console.log('❌ Invalid token structure')
+        return res.status(401).json({ 
+          success: false,
+          error: 'Invalid token structure' 
+        })
+      }
+
+      // Set user info in request
       req.user = {
-        id: '1',
-        username: 'demo_user',
-        email: 'demo@example.com'
+        id: decoded.user.id,
+        username: decoded.user.username,
+        email: decoded.user.email
       }
-      console.log('✅ Dummy token accepted')
-    } else {
-      // Handle real JWT tokens
-      try {
-        // For now, just accept the token without verification
-        // In production, use: const decoded = jwt.verify(token, process.env.JWT_SECRET)
-        req.user = {
-          id: token.substring(0, 10) || 'user_' + Date.now(), // Use token prefix as user ID for now
-          username: 'authenticated_user',
-          email: 'user@example.com'
-        }
-        console.log('✅ Real token accepted (user ID:', req.user.id, ')')
-      } catch (jwtError) {
-        console.log('❌ JWT verification failed:', jwtError.message)
-        // For MVP, still accept the token
-        req.user = {
-          id: 'user_' + Date.now(),
-          username: 'authenticated_user',
-          email: 'user@example.com'
-        }
-        console.log('✅ Token accepted despite JWT error (user ID:', req.user.id, ')')
+      
+      console.log('✅ JWT token verified successfully for user:', req.user.id)
+      next()
+      
+    } catch (jwtError) {
+      console.log('❌ JWT verification failed:', jwtError.message)
+      
+      // Check if it's an expired token
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          success: false,
+          error: 'Token expired' 
+        })
       }
+      
+      // Check if it's an invalid token
+      if (jwtError.name === 'JsonWebTokenError') {
+        return res.status(401).json({ 
+          success: false,
+          error: 'Invalid token' 
+        })
+      }
+      
+      // Other JWT errors
+      return res.status(401).json({ 
+        success: false,
+        error: 'Token verification failed' 
+      })
     }
     
-    next()
   } catch (error) {
     console.error('❌ Auth middleware error:', error)
-    res.status(500).json({ message: 'Server error' })
+    return res.status(500).json({ 
+      success: false,
+      error: 'Authentication error' 
+    })
   }
 }
 

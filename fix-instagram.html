@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fix Instagram Connection - MVP Testing</title>
+    <title>Fix Instagram Connection</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -67,11 +67,36 @@
             font-family: monospace;
             font-size: 14px;
         }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .login-section {
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            background: #f8f9ff;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔧 Fix Instagram Connection - MVP Testing</h1>
+        <h1>🔧 Fix Instagram Connection</h1>
         
         <div class="info">
             <strong>Problem:</strong> Your Instagram account is connected but the dashboard shows it as disconnected because of a user ID mismatch.
@@ -81,21 +106,50 @@
             <strong>Solution:</strong> This tool will fix the user ID mismatch so your dashboard shows Instagram as connected.
         </div>
         
-        <button class="button" onclick="fixInstagramConnection()">🔧 Fix Instagram Connection</button>
-        <button class="button" onclick="checkCurrentStatus()">📊 Check Current Status</button>
-        <button class="button" onclick="clearLog()">🗑️ Clear Log</button>
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <h3>🔐 Authentication Required</h3>
+            <p>Please log in with your InstantChat credentials to access the Instagram connection fix tools.</p>
+            
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Enter your username" />
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password" />
+            </div>
+            
+            <button class="button" onclick="login()">🔐 Login</button>
+            
+            <div id="loginResult"></div>
+        </div>
         
-        <div id="result"></div>
-        
-        <div class="log" id="log"></div>
+        <!-- Tools Section (Hidden until logged in) -->
+        <div id="toolsSection" class="hidden">
+            <h3>🛠️ Instagram Connection Tools</h3>
+            
+            <button class="button" onclick="fixInstagramConnection()">🔧 Fix Instagram Connection</button>
+            <button class="button" onclick="checkCurrentStatus()">📊 Check Current Status</button>
+            <button class="button" onclick="clearLog()">🗑️ Clear Log</button>
+            <button class="button" onclick="logout()" style="background: #6c757d;">🚪 Logout</button>
+            
+            <div id="result"></div>
+            
+            <div class="log" id="log"></div>
+        </div>
     </div>
 
     <script>
         const BACKEND_URL = 'https://tish-production.up.railway.app';
-        const AUTH_TOKEN = 'dummy_jwt_token_1756';
+        let authToken = null;
+        let currentUser = null;
         
         function log(message, type = 'info') {
             const logDiv = document.getElementById('log');
+            if (!logDiv) return;
+            
             const timestamp = new Date().toLocaleTimeString();
             const logEntry = document.createElement('div');
             logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#17a2b8';
@@ -105,21 +159,101 @@
         }
         
         function clearLog() {
-            document.getElementById('log').innerHTML = '';
+            const logDiv = document.getElementById('log');
+            if (logDiv) logDiv.innerHTML = '';
         }
         
         function showResult(message, type = 'info') {
             const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            if (resultDiv) {
+                resultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            }
+        }
+        
+        function showLoginResult(message, type = 'info') {
+            const loginResultDiv = document.getElementById('loginResult');
+            if (loginResultDiv) {
+                loginResultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            }
+        }
+        
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showLoginResult('❌ Please enter both username and password', 'error');
+                return;
+            }
+            
+            try {
+                showLoginResult('🔐 Logging in...', 'info');
+                
+                const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    
+                    showLoginResult('✅ Login successful! Loading tools...', 'success');
+                    
+                    // Hide login section and show tools
+                    setTimeout(() => {
+                        document.getElementById('loginSection').classList.add('hidden');
+                        document.getElementById('toolsSection').classList.remove('hidden');
+                        showLoginResult('', 'info'); // Clear login result
+                        
+                        // Auto-check status
+                        checkCurrentStatus();
+                    }, 1000);
+                    
+                } else {
+                    showLoginResult(`❌ Login failed: ${data.error || 'Invalid credentials'}`, 'error');
+                }
+                
+            } catch (error) {
+                showLoginResult(`❌ Login error: ${error.message}`, 'error');
+            }
+        }
+        
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            
+            // Show login section and hide tools
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('toolsSection').classList.add('hidden');
+            
+            // Clear forms and results
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginResult').innerHTML = '';
+            document.getElementById('result').innerHTML = '';
+            clearLog();
+            
+            showLoginResult('✅ Logged out successfully', 'success');
         }
         
         async function checkCurrentStatus() {
+            if (!authToken) {
+                showResult('❌ Please log in first', 'error');
+                return;
+            }
+            
             try {
                 log('📊 Checking current Instagram connection status...');
                 
                 const response = await fetch(`${BACKEND_URL}/api/instagram/debug/auth`, {
                     headers: {
-                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                        'Authorization': `Bearer ${authToken}`
                     }
                 });
                 
@@ -157,6 +291,11 @@
         }
         
         async function fixInstagramConnection() {
+            if (!authToken) {
+                showResult('❌ Please log in first', 'error');
+                return;
+            }
+            
             try {
                 log('🔧 Starting Instagram connection fix...');
                 showResult('🔧 Fixing Instagram connection...', 'info');
@@ -164,7 +303,7 @@
                 const response = await fetch(`${BACKEND_URL}/api/instagram/debug/fix-user-id-mismatch`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Authorization': `Bearer ${authToken}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -201,10 +340,16 @@
             }
         }
         
-        // Auto-check status when page loads
+        // Handle Enter key in password field
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+        
+        // Auto-focus username field when page loads
         window.onload = function() {
-            log('🚀 Instagram Connection Fix Tool loaded');
-            log('Click "Check Current Status" to see your current Instagram connection');
+            document.getElementById('username').focus();
         };
     </script>
 </body>

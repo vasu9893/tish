@@ -1,322 +1,257 @@
 # 🚀 InstantChat - Instagram Automation Platform
 
-**A complete SaaS platform for Instagram automation, bot flow building, and customer engagement management.**
+**Complete SaaS platform for Instagram business messaging automation with real-time chat, flow builder, and webhook management.**
 
 ## ✨ Features
 
-### 🔐 **Authentication & User Management**
-- **Secure Login/Signup**: JWT-based authentication with localStorage persistence
-- **User Profiles**: Editable profiles with avatar upload support
-- **Security Features**: Two-factor authentication (2FA) and login notifications
-- **Account Management**: Profile updates, avatar changes, and account deletion
+### 🔐 **Secure Authentication**
+- **Real JWT authentication** with secure user management
+- **User registration & login** with password hashing
+- **Protected API endpoints** with middleware validation
+- **Session management** with token expiration
 
-### 📱 **Instagram Integration (v2.0)**
-- **Instagram Graph API**: Real-time access to Instagram conversations and messages
-- **Facebook OAuth**: Secure authentication through Facebook's OAuth system
-- **Advanced Permissions**: `instagram_manage_messages` and `instagram_basic` scopes
-- **Real-time Conversations**: Live access to DM threads and message history
-- **Message Details**: Full message content, timestamps, and sender information
-- **API Limitations**: Handles Instagram's 20-message limit per conversation
-- **Error Handling**: Robust error handling for API responses and rate limiting
+### 📱 **Instagram Integration**
+- **Meta Graph API v21.0** integration
+- **OAuth 2.0 authentication** for Instagram Business accounts
+- **Real-time message handling** via webhooks
+- **Conversation management** with user context
+- **Permission management** for Instagram features
 
-### 🤖 **Bot Flow Builder**
-- **Visual Flow Editor**: Drag-and-drop interface using React Flow
-- **Node Types**: Message, Condition, and Action nodes for complex workflows
-- **Flow Management**: Save, load, and manage multiple automation flows
-- **Real-time Execution**: Automated responses based on incoming messages
+### 🤖 **Automation & Workflows**
+- **Visual Flow Builder** for creating automation workflows
+- **Trigger-based automation** (message received, time-based, etc.)
+- **Action nodes** (send message, delay, conditional logic)
+- **Workflow templates** for common use cases
 
-### 💬 **Chat Management**
-- **Conversation Overview**: View all Instagram conversations in one place
-- **Message History**: Complete chat history with real-time updates
-- **Smart Notifications**: Unread message counts and conversation status
-- **Quick Actions**: Send messages directly from the dashboard
+### 💬 **Real-time Communication**
+- **Socket.IO integration** for instant messaging
+- **Live chat interface** with real-time updates
+- **Message history** and conversation threading
+- **Multi-user support** with authentication
 
-### 🎨 **Modern UI/UX**
-- **Responsive Design**: Works seamlessly on desktop and mobile devices
-- **Tailwind CSS**: Beautiful, consistent styling with custom color schemes
-- **shadcn/ui Components**: Professional UI components built on Radix UI
-- **Dark/Light Mode Ready**: Prepared for theme switching
+### 🔧 **Developer Tools**
+- **Webhook management** for Instagram events
+- **API documentation** with examples
+- **Debug endpoints** for troubleshooting
+- **Health monitoring** and status checks
 
 ## 🏗️ Architecture
 
 ### **Frontend (React + Vite)**
-```
-client/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── ui/             # shadcn/ui components
-│   │   └── flow/           # React Flow custom nodes
-│   ├── pages/              # Main application pages
-│   ├── utils/              # Utility functions and API helpers
-│   └── lib/                # Third-party library configurations
-```
+- Modern React with hooks and context
+- Tailwind CSS for styling
+- Socket.IO client for real-time features
+- Responsive design for all devices
 
 ### **Backend (Node.js + Express)**
-```
-server/
-├── models/                  # MongoDB schemas
-├── routes/                  # API endpoint handlers
-├── middleware/              # Authentication and validation
-├── engine/                  # Bot flow execution engine
-└── utils/                   # Helper utilities
-```
+- RESTful API with Express.js
+- JWT authentication middleware
+- MongoDB with Mongoose ODM
+- Socket.IO server for real-time features
 
-### **Database (MongoDB Atlas)**
-- **User Management**: User accounts, profiles, and authentication
-- **Instagram Data**: Connection details and message history
-- **Flow Storage**: Bot automation workflows and configurations
-- **Message History**: Complete conversation records
+### **Database (MongoDB)**
+- User management and authentication
+- Instagram connection storage
+- Message history and conversations
+- Workflow and automation data
+
+### **External APIs**
+- **Meta Graph API** for Instagram integration
+- **Webhook handling** for real-time events
+- **OAuth 2.0** for secure authentication
 
 ## 🚀 Quick Start
 
-### **Prerequisites**
-- Node.js 16+ and npm
-- MongoDB Atlas account
-- Meta Developer account with Instagram Business Login setup
-
-### **1. Clone and Setup**
+### **1. Clone & Install**
 ```bash
 git clone <repository-url>
 cd instantchat
 
 # Install dependencies
-npm install
-cd client && npm install
-cd ../server && npm install
+npm run install:all
 ```
 
-### **2. Environment Configuration**
+### **2. Environment Setup**
 ```bash
 # Copy environment template
 cp env.example .env
 
-# Fill in your configuration
-MONGO_URI=your_mongodb_atlas_connection_string
-JWT_SECRET=your_jwt_secret_key
+# Edit with your credentials
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/instantchat
+JWT_SECRET=your_super_secret_jwt_key
 INSTAGRAM_APP_ID=your_instagram_app_id
 INSTAGRAM_APP_SECRET=your_instagram_app_secret
-META_VERIFY_TOKEN=your_webhook_verify_token
 ```
 
 ### **3. Start Development**
 ```bash
-# Terminal 1: Start backend
-cd server
+# Start both frontend and backend
 npm run dev
 
-# Terminal 2: Start frontend
-cd client
-npm run dev
+# Or start separately
+npm run dev:server  # Backend on port 5000
+npm run dev:client  # Frontend on port 3000
 ```
 
-### **4. Access Application**
-- **Frontend**: http://localhost:5173
-- **Backend**: http://localhost:5000
-- **API Docs**: http://localhost:5000/api
+### **4. Create Account & Connect**
+1. **Sign up** at http://localhost:3000/signup
+2. **Login** with your credentials
+3. **Connect Instagram** via OAuth
+4. **Build automation flows** using the Flow Builder
 
-## 📚 API Documentation
-
-### **Authentication Endpoints**
-- `POST /api/auth/login` - User login
-- `POST /api/auth/signup` - User registration
-- `GET /api/auth/verify` - Verify JWT token
+## 🔐 Authentication System
 
 ### **User Management**
-- `GET /api/user/profile` - Get user profile
-- `PATCH /api/user/profile` - Update user profile
-- `POST /api/user/avatar` - Upload avatar
-- `POST /api/user/2fa/enable` - Enable 2FA
-- `DELETE /api/user/delete` - Delete account
+- **Secure registration** with validation
+- **Password hashing** using bcrypt
+- **JWT token generation** for sessions
+- **Token verification** on protected routes
 
-### **Instagram Integration (v2.0)**
-- `GET /api/instagram/status` - Check connection status
-- `GET /api/instagram/conversations` - Get real-time conversations from Instagram Graph API
-- `GET /api/instagram/conversations/:id/messages` - Get messages from specific conversation
-- `POST /api/instagram/send-message` - Send message
-- `POST /api/instagram/disconnect` - Disconnect account
-- `GET /api/instagram/account` - Get account details
+### **Security Features**
+- **Input validation** and sanitization
+- **Password strength** requirements
+- **Email uniqueness** checking
+- **JWT expiration** handling
+- **Protected middleware** for routes
 
-### **Flow Management**
-- `POST /api/flow/save` - Save automation flow
-- `GET /api/flow/get/:name` - Load flow by name
-- `GET /api/flow/user` - Get user's flows
-- `DELETE /api/flow/:id` - Delete flow
-- `POST /api/flow/:id/test` - Test flow execution
+## 📱 Instagram Integration
 
-### **Message Management**
-- `GET /api/messages/instagram` - Get conversations
-- `GET /api/messages/instagram/:id` - Get chat messages
+### **Setup Requirements**
+1. **Meta Developer Account** with Instagram Basic Display app
+2. **Instagram Business Account** connected to Facebook Page
+3. **App permissions** for `instagram_manage_messages`
+4. **Webhook verification** token configured
 
-## 🔧 Configuration
+### **Connection Process**
+1. **OAuth flow** initiates Instagram login
+2. **Permission request** for message management
+3. **Webhook setup** for real-time events
+4. **Connection storage** in database
+5. **Real-time messaging** via Graph API
 
-### **Meta App Setup (Instagram Graph API)**
-1. Create app in [Meta Developer Console](https://developers.facebook.com/)
-2. Add Instagram Graph API product
-3. Configure Facebook OAuth redirect URIs
-4. Set webhook verification token
-5. Add required permissions: `instagram_manage_messages`, `instagram_basic`
-6. Configure Instagram Business Login for your app
+### **Webhook Handling**
+- **Message received** events
+- **User interaction** tracking
+- **Automation triggers** based on events
+- **Real-time notifications** via Socket.IO
 
-### **MongoDB Atlas**
-1. Create cluster in MongoDB Atlas
-2. Set up database user with read/write permissions
-3. Configure IP whitelist (or use 0.0.0.0/0 for development)
-4. Get connection string and add to environment
+## 🛠️ Development
 
-### **Environment Variables**
-```env
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# Database
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/instantchat
-
+### **API Endpoints**
+```bash
 # Authentication
-JWT_SECRET=your_super_secret_jwt_key
+POST /api/auth/register    # User registration
+POST /api/auth/login       # User login
+GET  /api/auth/me         # Get current user
+POST /api/auth/verify     # Verify JWT token
 
-# Meta/Instagram (v2.0)
-INSTAGRAM_APP_ID=your_instagram_app_id
-INSTAGRAM_APP_SECRET=your_instagram_app_secret
-META_APP_ID=your_meta_app_id
-META_APP_SECRET=your_meta_app_secret
-META_VERIFY_TOKEN=instantchat_webhook_2024_secure_token
-META_GRAPH_URL=https://graph.facebook.com/v21.0
+# Instagram
+GET  /api/instagram/auth  # Check connection status
+POST /api/instagram/connect # Start OAuth flow
+GET  /api/instagram/callback # OAuth callback
+POST /api/instagram/webhook # Webhook endpoint
 
-# Client Configuration
-CLIENT_URL=http://localhost:5173
+# Messages
+GET  /api/messages        # Get conversation history
+POST /api/messages        # Send message
+GET  /api/conversations   # List conversations
 ```
+
+### **Database Models**
+- **User** - Authentication and profile data
+- **InstagramConnection** - OAuth tokens and permissions
+- **Conversation** - Chat threads and metadata
+- **Message** - Individual messages with content
+- **Workflow** - Automation flow definitions
+
+### **Real-time Events**
+- **User authentication** via Socket.IO
+- **Message delivery** notifications
+- **Workflow execution** updates
+- **Connection status** changes
 
 ## 🚀 Deployment
 
-### **Frontend (Netlify)**
+### **Frontend (Netlify/Vercel)**
 ```bash
 cd client
 npm run build
-# Deploy dist/ folder to Netlify
+# Deploy dist/ folder
 ```
 
-### **Backend (Railway)**
+### **Backend (Railway/Heroku)**
 ```bash
 cd server
-# Connect GitHub repository to Railway
-# Railway will auto-deploy on push
+# Connect repository for auto-deploy
+# Set environment variables
 ```
 
 ### **Database (MongoDB Atlas)**
-- Use MongoDB Atlas cloud database
-- Configure connection string in deployment environment
-- Set up proper IP whitelisting for production
+- **Cloud-hosted** MongoDB cluster
+- **Connection string** in environment
+- **IP whitelist** for production servers
+- **SSL connections** enabled
 
 ## 🧪 Testing
 
 ### **Health Check**
 ```bash
-cd server
-npm run healthcheck
+curl https://your-domain.com/api/health
 ```
 
-### **API Testing**
+### **Authentication Test**
 ```bash
-# Test Instagram webhook
-curl -X GET "https://your-domain.com/api/webhook/instagram?hub.mode=subscribe&hub.challenge=test&hub.verify_token=your_token"
+# Register user
+curl -X POST "https://your-domain.com/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@example.com","password":"password123"}'
 
-# Test authentication
+# Login
 curl -X POST "https://your-domain.com/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"test","password":"test"}'
+  -d '{"username":"test","password":"password123"}'
 ```
 
-## 📱 Usage Guide
+### **Instagram Webhook Test**
+```bash
+curl -X GET "https://your-domain.com/api/webhook/instagram?hub.mode=subscribe&hub.challenge=test&hub.verify_token=your_token"
+```
 
-### **1. Getting Started**
-1. **Sign Up**: Create your account with email and password
-2. **Connect Instagram**: Link your Instagram account via OAuth
-3. **Build Flows**: Create automation workflows using the Flow Builder
-4. **Monitor Conversations**: View and respond to Instagram messages
+## 📚 Documentation
 
-### **2. Building Automation Flows**
-1. **Add Nodes**: Drag Message, Condition, or Action nodes to canvas
-2. **Configure Logic**: Set up conditions and responses
-3. **Connect Flow**: Link nodes to create workflow paths
-4. **Test & Save**: Test your flow and save for production use
+- **API_DOCUMENTATION.md** - Complete API reference
+- **INSTALL.md** - Installation and setup guide
+- **Code comments** - Inline documentation
+- **Environment variables** - Configuration guide
 
-### **3. Managing Conversations**
-1. **View All Chats**: See all Instagram conversations in one dashboard
-2. **Quick Responses**: Send messages directly from the interface
-3. **Automation**: Let your bot flows handle routine responses
-4. **Analytics**: Track engagement and response metrics
+## 🔒 Security
 
-## 🔒 Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **Password Protection**: Secure password handling with bcrypt
-- **API Rate Limiting**: Protection against abuse
-- **CORS Configuration**: Secure cross-origin requests
-- **Input Validation**: Sanitized user inputs
-- **HTTPS Enforcement**: Secure connections in production
-
-## 🚧 Development Roadmap
-
-### **Phase 1** ✅ **COMPLETED**
-- Basic authentication system
-- User management
-- Real-time chat interface
-
-### **Phase 2** ✅ **COMPLETED**
-- Instagram OAuth integration
-- Webhook handling
-- Direct message sending
-
-### **Phase 3** ✅ **COMPLETED**
-- Bot flow builder
-- Visual workflow editor
-- Flow storage and management
-
-### **Phase 4** ✅ **COMPLETED**
-- Automation engine
-- Real API integration
-- Production-ready deployment
-
-### **Phase 5** ✅ **COMPLETED**
-- Instagram Graph API integration
-- Real-time conversation access
-- Facebook OAuth implementation
-- Advanced message handling
-
-### **Future Enhancements**
-- **Analytics Dashboard**: Message metrics and engagement analytics
-- **Multi-Platform Support**: WhatsApp, Facebook Messenger integration
-- **Advanced AI**: Natural language processing for smarter responses
-- **Team Collaboration**: Multi-user access and role management
-- **API Marketplace**: Third-party integrations and plugins
+- **JWT authentication** with secure tokens
+- **Password hashing** using bcrypt
+- **Input validation** and sanitization
+- **Protected routes** with middleware
+- **Environment variable** protection
+- **HTTPS enforcement** in production
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+1. **Fork** the repository
+2. **Create** feature branch
+3. **Make** your changes
+4. **Test** thoroughly
+5. **Submit** pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🆘 Support
 
-- **Documentation**: Check the docs folder for detailed guides
-- **Issues**: Report bugs via GitHub Issues
-- **Discussions**: Join community discussions on GitHub
-- **Email**: Contact support@instantchat.com
-
-## 🙏 Acknowledgments
-
-- **React Flow**: For the visual flow builder
-- **shadcn/ui**: For beautiful UI components
-- **Tailwind CSS**: For utility-first styling
-- **Meta Platform**: For Instagram API access
+- **Documentation** - Check the docs folder
+- **Issues** - Create GitHub issue
+- **Discussions** - Use GitHub discussions
+- **Email** - Contact the development team
 
 ---
 
-**Built with ❤️ for modern Instagram automation**
+**Built with ❤️ for modern business communication**

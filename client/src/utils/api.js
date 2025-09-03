@@ -107,6 +107,8 @@ api.interceptors.request.use((config) => {
 // Auth functions
 export const login = (credentials) => api.post('/api/auth/login', credentials)
 export const register = (userData) => api.post('/api/auth/register', userData)
+export const verifyToken = (token) => api.post('/api/auth/verify', { token })
+export const getCurrentUser = () => api.get('/api/auth/me')
 
 // Message functions
 export const sendMessage = (messageData) => api.post('/api/messages', messageData)

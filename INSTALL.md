@@ -55,19 +55,37 @@ npm run dev
 - **Backend API**: http://localhost:5000
 - **API Status**: http://localhost:5000/
 
-## 🔐 Login Credentials
+## 🔐 Authentication System
 
-For MVP testing, **any username and password combination will work**:
-- Username: `testuser`
-- Password: `password123`
+InstantChat now uses **real JWT authentication** with secure user management:
+
+### **User Registration & Login**
+- **Secure registration** with username, email, and password
+- **Password hashing** using bcrypt
+- **JWT token generation** for authenticated sessions
+- **Token verification** on all protected endpoints
+
+### **Security Features**
+- **Password validation** (minimum 6 characters)
+- **Email uniqueness** checking
+- **Username uniqueness** checking
+- **JWT expiration** (24 hours)
+- **Secure middleware** for protected routes
+
+### **Getting Started**
+1. **Create an account** using the signup form
+2. **Login** with your credentials
+3. **Receive JWT token** for API access
+4. **Connect Instagram** using your authenticated session
 
 ## 📱 Features to Test
 
-1. **Login** - Use any username/password
-2. **Real-time Chat** - Send messages and see them appear instantly
-3. **Message History** - Messages are loaded when you connect
-4. **Responsive Design** - Works on desktop and mobile
-5. **Socket Connection** - Real-time updates across multiple browser tabs
+1. **User Registration** - Create secure accounts
+2. **User Login** - Authenticate with JWT tokens
+3. **Instagram Integration** - Connect with real authentication
+4. **Real-time Chat** - Send messages with user context
+5. **Message History** - Load conversations for authenticated users
+6. **Responsive Design** - Works on desktop and mobile
 
 ## 🐛 Troubleshooting
 
@@ -82,31 +100,23 @@ taskkill /PID <PID> /F
 ```
 
 **MongoDB connection failed:**
-- Check your connection string in `.env`
-- Verify IP whitelist in MongoDB Atlas
-- Check network connectivity
+- Check your MongoDB Atlas connection string
+- Verify IP whitelist includes your IP address
+- Ensure database user has proper permissions
 
-**Dependencies not found:**
-```bash
-# Clear and reinstall
-rm -rf node_modules package-lock.json
-npm install
-```
+**Authentication errors:**
+- Verify JWT_SECRET is set in environment
+- Check MongoDB connection for user data
+- Ensure proper token format in Authorization header
 
-## 🎯 Next Steps
+**Instagram connection issues:**
+- Use the Instagram Connection Fix Tool
+- Verify user authentication before connecting
+- Check Instagram app permissions and webhook setup
 
-After successful installation:
-1. Test the basic chat functionality
-2. Open multiple browser tabs to test real-time messaging
-3. Check the browser console for any errors
-4. Review the code structure for future enhancements
+## 🔒 Security Notes
 
-## 📚 Documentation
-
-- **README.md** - Comprehensive project documentation
-- **Code comments** - Inline documentation throughout the codebase
-- **API endpoints** - RESTful API documentation in routes
-
----
-
-**Need help?** Check the troubleshooting section or create an issue in the repository.
+- **JWT_SECRET** should be a strong, unique key
+- **MongoDB** should use SSL connections in production
+- **Environment variables** should never be committed to version control
+- **User passwords** are automatically hashed and never stored in plain text
