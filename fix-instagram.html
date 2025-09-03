@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Instagram Connection - MVP Testing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Instagram Connection - MVP Testing</h1>
+        
+        <div class="info">
+            <strong>Problem:</strong> Your Instagram account is connected but the dashboard shows it as disconnected because of a user ID mismatch.
+        </div>
+        
+        <div class="info">
+            <strong>Solution:</strong> This tool will fix the user ID mismatch so your dashboard shows Instagram as connected.
+        </div>
+        
+        <button class="button" onclick="fixInstagramConnection()">🔧 Fix Instagram Connection</button>
+        <button class="button" onclick="checkCurrentStatus()">📊 Check Current Status</button>
+        <button class="button" onclick="clearLog()">🗑️ Clear Log</button>
+        
+        <div id="result"></div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://tish-production.up.railway.app';
+        const AUTH_TOKEN = 'dummy_jwt_token_1756';
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#17a2b8';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+        
+        async function checkCurrentStatus() {
+            try {
+                log('📊 Checking current Instagram connection status...');
+                
+                const response = await fetch(`${BACKEND_URL}/api/instagram/debug/auth`, {
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const conn = data.debug.instagramConnection;
+                    if (conn) {
+                        log(`✅ Instagram connection found:`, 'success');
+                        log(`   Username: ${conn.username}`, 'success');
+                        log(`   User ID: ${conn.userId}`, 'success');
+                        log(`   Is Connected: ${conn.isConnected}`, 'success');
+                        log(`   Permissions: ${conn.permissions.join(', ') || 'None'}`, 'success');
+                        
+                        if (conn.isConnected && conn.permissions.includes('instagram_manage_messages')) {
+                            showResult('🎉 Instagram is already properly connected and working!', 'success');
+                        } else if (conn.isConnected) {
+                            showResult('⚠️ Instagram is connected but missing required permissions. Use the fix button above.', 'error');
+                        } else {
+                            showResult('❌ Instagram connection is not active. Use the fix button above.', 'error');
+                        }
+                    } else {
+                        log('❌ No Instagram connection found for current user', 'error');
+                        showResult('❌ No Instagram connection found. Please connect your Instagram account first.', 'error');
+                    }
+                } else {
+                    log(`❌ Failed to check status: ${data.error}`, 'error');
+                    showResult(`❌ Failed to check status: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error checking status: ${error.message}`, 'error');
+                showResult(`❌ Error checking status: ${error.message}`, 'error');
+            }
+        }
+        
+        async function fixInstagramConnection() {
+            try {
+                log('🔧 Starting Instagram connection fix...');
+                showResult('🔧 Fixing Instagram connection...', 'info');
+                
+                const response = await fetch(`${BACKEND_URL}/api/instagram/debug/fix-user-id-mismatch`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('✅ Instagram connection fixed successfully!', 'success');
+                    log(`   Username: ${data.connection.username}`, 'success');
+                    log(`   Old User ID: ${data.connection.oldUserId}`, 'success');
+                    log(`   New User ID: ${data.connection.newUserId}`, 'success');
+                    log(`   Permissions: ${data.connection.permissions.join(', ')}`, 'success');
+                    
+                    showResult(`
+                        🎉 Instagram connection fixed successfully!<br>
+                        <strong>Username:</strong> ${data.connection.username}<br>
+                        <strong>Permissions:</strong> ${data.connection.permissions.join(', ')}<br>
+                        <br>
+                        <strong>Next Steps:</strong><br>
+                        1. Go back to your InstantChat dashboard<br>
+                        2. Refresh the page<br>
+                        3. Instagram should now show as connected!<br>
+                        4. Try loading conversations
+                    `, 'success');
+                    
+                } else {
+                    log(`❌ Fix failed: ${data.error}`, 'error');
+                    showResult(`❌ Fix failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error during fix: ${error.message}`, 'error');
+                showResult(`❌ Error during fix: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-check status when page loads
+        window.onload = function() {
+            log('🚀 Instagram Connection Fix Tool loaded');
+            log('Click "Check Current Status" to see your current Instagram connection');
+        };
+    </script>
+</body>
+</html>

@@ -544,6 +544,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
       return res.redirect(`${clientUrl}/dashboard?instagram=error&error=${encodeURIComponent('Invalid security token')}`)
     }
 
+
     // Exchange code for Instagram Business access token
     console.log('=== STEP 1: Instagram Business Login Token Exchange ===')
     console.log('Code received:', code ? 'YES' : 'NO')
