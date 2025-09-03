@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X, Check, Trash2, Filter, Search } from 'lucide-react';
+import { Bell, X, Check, Trash2, Filter, Search, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import useNotificationStore from '../stores/notificationStore';
+import websocketService from '../services/websocketService';
 import { toast } from 'sonner';
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   
   const {
     notifications,
@@ -28,28 +30,31 @@ const NotificationBell = () => {
     getUnreadNotifications
   } = useNotificationStore();
 
-  // Mock mode for testing
-  const [mockMode, setMockMode] = useState(false);
-  const [mockInterval, setMockInterval] = useState(null);
-
   useEffect(() => {
     // Load initial notifications
     loadNotifications();
     
-    // Setup WebSocket connection (placeholder)
+    // Setup WebSocket connection
     setupWebSocket();
     
-    return () => {
-      if (mockInterval) {
-        clearInterval(mockInterval);
+    // Listen for connection status changes
+    const unsubscribe = useNotificationStore.subscribe(
+      (state) => state.isConnected,
+      (isConnected) => {
+        setConnectionStatus(isConnected ? 'connected' : 'disconnected');
       }
+    );
+    
+    return () => {
+      unsubscribe();
+      websocketService.disconnect();
     };
   }, []);
 
   const loadNotifications = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await api.get('/notifications');
+      // TODO: Replace with actual API call to load existing notifications
+      // const response = await api.get('/api/notifications');
       // if (response.data?.success) {
       //   response.data.notifications.forEach(notif => addNotification(notif));
       // }
@@ -59,61 +64,36 @@ const NotificationBell = () => {
   };
 
   const setupWebSocket = () => {
-    // TODO: Implement WebSocket connection
-    // For now, just simulate connection
-    setTimeout(() => {
-      useNotificationStore.getState().setConnectionStatus(true);
-    }, 1000);
-  };
-
-  const startMockMode = () => {
-    if (mockMode) return;
-    
-    setMockMode(true);
-    const interval = setInterval(() => {
-      const mockEvents = [
-        {
-          eventType: 'comments',
-          userInfo: { username: 'user_' + Math.floor(Math.random() * 1000) },
-          content: { text: 'Great post! Love this content.' },
-          timestamp: new Date().toISOString()
-        },
-        {
-          eventType: 'messages',
-          userInfo: { username: 'dm_user_' + Math.floor(Math.random() * 1000) },
-          content: { text: 'Hi! I have a question about your services.' },
-          timestamp: new Date().toISOString()
-        },
-        {
-          eventType: 'mentions',
-          userInfo: { username: 'mention_user_' + Math.floor(Math.random() * 1000) },
-          content: { text: 'Check out this amazing account!' },
-          timestamp: new Date().toISOString()
-        }
-      ];
+    try {
+      // Connect to WebSocket
+      websocketService.connect();
       
-      const randomEvent = mockEvents[Math.floor(Math.random() * mockEvents.length)];
-      addNotification(randomEvent);
+      // Subscribe to Instagram webhook events
+      setTimeout(() => {
+        websocketService.subscribeToEvents([
+          'comments',
+          'messages', 
+          'mentions',
+          'live_comments',
+          'message_reactions',
+          'message_postbacks',
+          'message_referrals',
+          'message_seen'
+        ]);
+      }, 2000); // Wait for connection to establish
       
-      // Show toast for new notification
-      toast(`${randomEvent.eventType}: ${randomEvent.content.text.substring(0, 50)}...`, {
-        duration: 5000,
-        action: {
-          label: 'View',
-          onClick: () => setIsOpen(true)
-        }
-      });
-    }, 3000); // Every 3 seconds
-    
-    setMockInterval(interval);
-  };
-
-  const stopMockMode = () => {
-    if (mockInterval) {
-      clearInterval(mockInterval);
-      setMockInterval(null);
+    } catch (error) {
+      console.error('Failed to setup WebSocket:', error);
+      toast.error('Failed to connect to notification service');
     }
-    setMockMode(false);
+  };
+
+  const handleReconnect = () => {
+    websocketService.disconnect();
+    setTimeout(() => {
+      setupWebSocket();
+      toast.info('Reconnecting to notification service...');
+    }, 1000);
   };
 
   const getEventTypeIcon = (eventType) => {
@@ -157,6 +137,24 @@ const NotificationBell = () => {
 
   const filteredNotifications = getFilteredNotifications();
 
+  const getConnectionStatusIcon = () => {
+    switch (connectionStatus) {
+      case 'connected': return <Wifi className="w-4 h-4 text-green-600" />;
+      case 'connecting': return <RefreshCw className="w-4 h-4 text-yellow-600 animate-spin" />;
+      case 'disconnected': return <WifiOff className="w-4 h-4 text-red-600" />;
+      default: return <WifiOff className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getConnectionStatusText = () => {
+    switch (connectionStatus) {
+      case 'connected': return '🟢 Live';
+      case 'connecting': return '🟡 Connecting...';
+      case 'disconnected': return '🔴 Offline';
+      default: return '⚪ Unknown';
+    }
+  };
+
   return (
     <div className="relative">
       {/* Notification Bell */}
@@ -186,8 +184,8 @@ const NotificationBell = () => {
               <div className="flex items-center space-x-2">
                 <Bell className="h-5 w-5 text-blue-600" />
                 <h3 className="font-semibold text-gray-900">Notifications</h3>
-                <Badge variant={isConnected ? 'default' : 'secondary'}>
-                  {isConnected ? '🟢 Live' : '🔴 Offline'}
+                <Badge variant={connectionStatus === 'connected' ? 'default' : 'secondary'}>
+                  {getConnectionStatusText()}
                 </Badge>
               </div>
               <Button
@@ -195,26 +193,36 @@ const NotificationBell = () => {
                 size="sm"
                 onClick={() => setIsOpen(false)}
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 h-4" />
               </Button>
             </div>
 
-            {/* Mock Mode Toggle */}
+            {/* Connection Controls */}
             <div className="flex items-center space-x-2 mb-3">
+              <div className="flex items-center space-x-2 text-xs text-gray-600">
+                {getConnectionStatusIcon()}
+                <span>WebSocket: {websocketService.getBackendUrl()}</span>
+              </div>
               <Button
                 size="sm"
-                variant={mockMode ? 'destructive' : 'outline'}
-                onClick={mockMode ? stopMockMode : startMockMode}
+                variant="outline"
+                onClick={handleReconnect}
+                disabled={connectionStatus === 'connecting'}
               >
-                {mockMode ? '🛑 Stop Mock' : '🧪 Start Mock'}
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Reconnect
               </Button>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center space-x-2 mb-3">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={markAllAsRead}
                 disabled={unreadCount === 0}
               >
-                <Check className="h-4 w-4 mr-1" />
+                <Check className="h-4 h-4 mr-1" />
                 Mark All Read
               </Button>
               <Button
@@ -223,7 +231,7 @@ const NotificationBell = () => {
                 onClick={clearNotifications}
                 disabled={notifications.length === 0}
               >
-                <Trash2 className="h-4 w-4 mr-1" />
+                <Trash2 className="h-4 h-4 mr-1" />
                 Clear All
               </Button>
             </div>
@@ -267,7 +275,12 @@ const NotificationBell = () => {
               <div className="p-8 text-center text-gray-500">
                 <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                 <p>No notifications</p>
-                <p className="text-sm">New webhook events will appear here</p>
+                <p className="text-sm">
+                  {connectionStatus === 'connected' 
+                    ? 'New webhook events will appear here' 
+                    : 'Connect to receive notifications'
+                  }
+                </p>
               </div>
             ) : (
               <div className="divide-y">
@@ -299,9 +312,9 @@ const NotificationBell = () => {
                           {notification.content?.text || 'No content available'}
                         </p>
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-500">
+                          <span className="text-xs text-gray-500">
                             {formatTimestamp(notification.timestamp)}
-                          </p>
+                          </span>
                           <p className="text-xs text-gray-500 capitalize">
                             {notification.eventType?.replace('_', ' ')}
                           </p>
@@ -329,13 +342,16 @@ const NotificationBell = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Notification Details</h3>
+              <div className="flex items-center space-x-2">
+                {getEventTypeIcon(showDetails.eventType)}
+                <h3 className="text-lg font-semibold">Notification Details</h3>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowDetails(null)}
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 h-4" />
               </Button>
             </div>
 
@@ -380,7 +396,7 @@ const NotificationBell = () => {
                 <label className="text-sm font-medium text-gray-700">Full Payload</label>
                 <div className="mt-1 p-3 bg-gray-900 rounded border overflow-x-auto">
                   <pre className="text-xs text-green-400">
-                    {JSON.stringify(showDetails, null, 2)}
+                    {JSON.stringify(showDetails.payload || showDetails, null, 2)}
                   </pre>
                 </div>
               </div>

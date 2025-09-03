@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, MessageSquare, Heart, AtSign, Play, Filter, Search, MoreHorizontal, RefreshCw } from 'lucide-react';
+import { Bell, MessageSquare, Heart, AtSign, Play, Filter, Search, MoreHorizontal, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import useNotificationStore from '../stores/notificationStore';
+import websocketService from '../services/websocketService';
 import { toast } from 'sonner';
 
 const NotificationDashboard = () => {
   const [showAll, setShowAll] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   
   const {
     notifications,
@@ -25,6 +27,18 @@ const NotificationDashboard = () => {
     getFilteredNotifications,
     getUnreadNotifications
   } = useNotificationStore();
+
+  useEffect(() => {
+    // Listen for connection status changes
+    const unsubscribe = useNotificationStore.subscribe(
+      (state) => state.isConnected,
+      (isConnected) => {
+        setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
 
   const filteredNotifications = getFilteredNotifications();
   const unreadNotifications = getUnreadNotifications();
@@ -81,8 +95,34 @@ const NotificationDashboard = () => {
     toast.success('All notifications marked as read');
   };
 
+  const handleReconnect = () => {
+    websocketService.disconnect();
+    setTimeout(() => {
+      websocketService.connect();
+      toast.info('Reconnecting to notification service...');
+    }, 1000);
+  };
+
   const getEventTypeLabel = (eventType) => {
     return eventType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getConnectionStatusIcon = () => {
+    switch (connectionStatus) {
+      case 'connected': return <Wifi className="w-4 h-4 text-green-600" />;
+      case 'connecting': return <RefreshCw className="w-4 h-4 text-yellow-600 animate-spin" />;
+      case 'disconnected': return <WifiOff className="w-4 h-4 text-red-600" />;
+      default: return <WifiOff className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getConnectionStatusText = () => {
+    switch (connectionStatus) {
+      case 'connected': return '🟢 Live';
+      case 'connecting': return '🟡 Connecting...';
+      case 'disconnected': return '🔴 Offline';
+      default: return '⚪ Unknown';
+    }
   };
 
   return (
@@ -99,11 +139,20 @@ const NotificationDashboard = () => {
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <Badge variant={isConnected ? 'default' : 'secondary'} className="text-xs">
-            {isConnected ? '🟢 Live' : '🔴 Offline'}
+          <Badge variant={connectionStatus === 'connected' ? 'default' : 'secondary'} className="text-xs">
+            {getConnectionStatusText()}
           </Badge>
           <Button
-            variant="ghost"
+            variant="outline"
+            size="sm"
+            onClick={handleReconnect}
+            disabled={connectionStatus === 'connecting'}
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Reconnect
+          </Button>
+          <Button
+            variant="outline"
             size="sm"
             onClick={handleMarkAllRead}
             disabled={unreadCount === 0}
@@ -111,6 +160,32 @@ const NotificationDashboard = () => {
             <RefreshCw className="w-4 h-4 mr-1" />
             Mark All Read
           </Button>
+        </div>
+      </div>
+
+      {/* Connection Status */}
+      <div className="bg-gray-50 rounded-lg p-4 border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {getConnectionStatusIcon()}
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                WebSocket Connection Status
+              </p>
+              <p className="text-xs text-gray-500">
+                {websocketService.getBackendUrl()}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-500">Status</p>
+            <p className={`text-sm font-medium ${
+              connectionStatus === 'connected' ? 'text-green-600' : 
+              connectionStatus === 'connecting' ? 'text-yellow-600' : 'text-red-600'
+            }`}>
+              {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -163,7 +238,10 @@ const NotificationDashboard = () => {
               <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
               <p className="font-medium">No notifications</p>
               <p className="text-sm">
-                {showAll ? 'No notifications match your filters' : 'You\'re all caught up!'}
+                {connectionStatus === 'connected' 
+                  ? 'New webhook events will appear here' 
+                  : 'Connect to receive notifications'
+                }
               </p>
             </div>
           ) : (
@@ -292,7 +370,7 @@ const NotificationDashboard = () => {
                 <label className="text-sm font-medium text-gray-700">Full Payload</label>
                 <div className="mt-1 p-3 bg-gray-900 rounded border overflow-x-auto">
                   <pre className="text-xs text-green-400">
-                    {JSON.stringify(selectedNotification, null, 2)}
+                    {JSON.stringify(selectedNotification.payload || selectedNotification, null, 2)}
                   </pre>
                 </div>
               </div>

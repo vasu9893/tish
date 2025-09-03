@@ -9,6 +9,7 @@ class WebSocketService {
     this.isConnecting = false;
     this.heartbeatInterval = null;
     this.connectionTimeout = null;
+    this.backendUrl = null;
   }
 
   connect(url = null) {
@@ -18,12 +19,24 @@ class WebSocketService {
 
     this.isConnecting = true;
     
-    // Use provided URL or default to backend WebSocket endpoint
-    const wsUrl = url || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/notifications`;
+    // Use provided URL or construct from environment/current location
+    if (url) {
+      this.backendUrl = url;
+    } else {
+      // Get backend URL from environment or construct from current location
+      const envBackendUrl = import.meta.env.VITE_API_URL;
+      if (envBackendUrl) {
+        // Convert HTTP/HTTPS to WS/WSS
+        this.backendUrl = envBackendUrl.replace(/^http/, 'ws') + '/ws/notifications';
+      } else {
+        // Fallback to current host with WebSocket path
+        this.backendUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/notifications`;
+      }
+    }
     
     try {
-      console.log('🔌 Connecting to WebSocket:', wsUrl);
-      this.socket = new WebSocket(wsUrl);
+      console.log('🔌 Connecting to WebSocket:', this.backendUrl);
+      this.socket = new WebSocket(this.backendUrl);
       
       this.setupEventHandlers();
       this.startConnectionTimeout();
@@ -38,13 +51,13 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.onopen = () => {
-      console.log('✅ WebSocket connected');
+      console.log('✅ WebSocket connected to backend');
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.startHeartbeat();
       useNotificationStore.getState().setConnectionStatus(true);
       
-      // Send authentication if needed
+      // Send authentication immediately after connection
       this.authenticate();
     };
 
@@ -88,6 +101,11 @@ class WebSocketService {
         // TODO: Implement notification update logic
         break;
         
+      case 'webhook_event':
+        // Handle webhook events from Instagram
+        this.handleWebhookEvent(data.payload);
+        break;
+        
       case 'heartbeat':
         // Respond to heartbeat
         this.send({ type: 'heartbeat_response', timestamp: Date.now() });
@@ -102,18 +120,48 @@ class WebSocketService {
         this.reconnect();
         break;
         
+      case 'connection_info':
+        console.log('📊 WebSocket connection info:', data);
+        break;
+        
       default:
         console.log('📨 Unknown message type:', data.type);
     }
   }
 
+  handleWebhookEvent(payload) {
+    // Transform webhook event to notification format
+    const notification = {
+      eventId: payload.id || payload.eventId,
+      eventType: payload.eventType || payload.type,
+      userInfo: {
+        username: payload.sender?.username || payload.from?.username || payload.senderId
+      },
+      senderId: payload.sender?.id || payload.from?.id || payload.senderId,
+      content: {
+        text: payload.message?.text || payload.comment?.text || payload.content || 'No content available'
+      },
+      timestamp: payload.timestamp || payload.created_time || new Date().toISOString(),
+      accountId: payload.accountId || payload.instagramAccountId,
+      payload: payload // Store full payload for details view
+    };
+
+    // Add to notification store
+    useNotificationStore.getState().addNotification(notification);
+  }
+
   authenticate() {
     const token = localStorage.getItem('token');
     if (token) {
+      console.log('🔐 Sending authentication token to WebSocket');
       this.send({
         type: 'authenticate',
-        token: token
+        token: token,
+        userId: localStorage.getItem('userId'),
+        timestamp: Date.now()
       });
+    } else {
+      console.warn('⚠️ No authentication token found for WebSocket');
     }
   }
 
@@ -131,7 +179,11 @@ class WebSocketService {
 
   startHeartbeat() {
     this.heartbeatInterval = setInterval(() => {
-      this.send({ type: 'heartbeat', timestamp: Date.now() });
+      this.send({ 
+        type: 'heartbeat', 
+        timestamp: Date.now(),
+        clientId: 'instantchat-frontend'
+      });
     }, 30000); // Send heartbeat every 30 seconds
   }
 
@@ -209,63 +261,42 @@ class WebSocketService {
     useNotificationStore.getState().setConnectionStatus(false);
   }
 
-  // Mock mode for development/testing
-  startMockMode() {
-    console.log('🧪 Starting WebSocket mock mode');
-    
-    // Simulate connection
-    setTimeout(() => {
-      useNotificationStore.getState().setConnectionStatus(true);
-    }, 1000);
-    
-    // Simulate incoming notifications
-    this.mockInterval = setInterval(() => {
-      const mockNotifications = [
-        {
-          type: 'notification',
-          payload: {
-            eventType: 'comments',
-            userInfo: { username: 'mock_user_' + Math.floor(Math.random() * 1000) },
-            content: { text: 'This is a mock comment for testing purposes.' },
-            timestamp: new Date().toISOString(),
-            eventId: 'mock_' + Date.now()
-          }
-        },
-        {
-          type: 'notification',
-          payload: {
-            eventType: 'messages',
-            userInfo: { username: 'mock_dm_' + Math.floor(Math.random() * 1000) },
-            content: { text: 'Mock direct message for testing the notification system.' },
-            timestamp: new Date().toISOString(),
-            eventId: 'mock_' + (Date.now() + 1)
-          }
-        },
-        {
-          type: 'notification',
-          payload: {
-            eventType: 'mentions',
-            userInfo: { username: 'mock_mention_' + Math.floor(Math.random() * 1000) },
-            content: { text: 'Mock mention notification to test the UI.' },
-            timestamp: new Date().toISOString(),
-            eventId: 'mock_' + (Date.now() + 2)
-          }
-        }
-      ];
-      
-      const randomNotification = mockNotifications[Math.floor(Math.random() * mockNotifications.length)];
-      this.handleMessage(randomNotification);
-    }, 5000); // Every 5 seconds
+  // Subscribe to specific webhook events
+  subscribeToEvents(eventTypes = []) {
+    this.send({
+      type: 'subscribe',
+      eventTypes: eventTypes,
+      userId: localStorage.getItem('userId'),
+      timestamp: Date.now()
+    });
   }
 
-  stopMockMode() {
-    if (this.mockInterval) {
-      clearInterval(this.mockInterval);
-      this.mockInterval = null;
-    }
-    
-    useNotificationStore.getState().setConnectionStatus(false);
-    console.log('🛑 WebSocket mock mode stopped');
+  // Unsubscribe from specific webhook events
+  unsubscribeFromEvents(eventTypes = []) {
+    this.send({
+      type: 'unsubscribe',
+      eventTypes: eventTypes,
+      userId: localStorage.getItem('userId'),
+      timestamp: Date.now()
+    });
+  }
+
+  // Request current webhook subscriptions
+  getSubscriptions() {
+    this.send({
+      type: 'get_subscriptions',
+      userId: localStorage.getItem('userId'),
+      timestamp: Date.now()
+    });
+  }
+
+  // Test webhook connection
+  testConnection() {
+    this.send({
+      type: 'test_connection',
+      userId: localStorage.getItem('userId'),
+      timestamp: Date.now()
+    });
   }
 
   getConnectionStatus() {
@@ -278,6 +309,10 @@ class WebSocketService {
       case WebSocket.CLOSED: return 'disconnected';
       default: return 'unknown';
     }
+  }
+
+  getBackendUrl() {
+    return this.backendUrl;
   }
 }
 
