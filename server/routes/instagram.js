@@ -15,6 +15,53 @@ router.get('/test', (req, res) => {
   })
 })
 
+// Debug endpoint to check authentication and user data
+router.get('/debug/auth', authMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 Instagram Auth Debug Route Called:', {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      user: req.user,
+      hasAuth: !!req.user,
+      userId: req.user?.id
+    })
+    
+    const userId = req.user.id
+    
+    // Check if user has Instagram connection
+    const instagramUser = await InstagramUser.findOne({ userId: userId })
+    
+    res.json({
+      success: true,
+      message: 'Authentication debug info',
+      debug: {
+        timestamp: new Date().toISOString(),
+        user: req.user,
+        hasInstagramConnection: !!instagramUser,
+        instagramConnection: instagramUser ? {
+          id: instagramUser._id,
+          userId: instagramUser.userId,
+          username: instagramUser.username,
+          instagramAccountId: instagramUser.instagramAccountId,
+          isConnected: instagramUser.isConnected,
+          lastConnected: instagramUser.lastConnected,
+          permissions: instagramUser.permissions
+        } : null
+      }
+    })
+    
+  } catch (error) {
+    console.error('❌ Instagram Auth Debug Error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get auth debug info',
+      details: error.message
+    })
+  }
+})
+
 // Debug endpoint to check Instagram connections in database
 router.get('/debug/connections', async (req, res) => {
   try {
@@ -710,7 +757,8 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     url: req.url,
     headers: req.headers,
     user: req.user,
-    hasAuth: !!req.user
+    hasAuth: !!req.user,
+    userId: req.user?.id
   })
   
   try {
@@ -720,10 +768,27 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     // Get user's Instagram connection
     const instagramUser = await InstagramUser.findOne({ userId: userId })
     
-    if (!instagramUser || !instagramUser.isConnected) {
+    if (!instagramUser) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Instagram not connected. Please connect your Instagram account first.' 
+        error: 'Instagram account not found. Please connect your Instagram account first.',
+        debug: {
+          requestedUserId: userId,
+          availableConnections: await InstagramUser.find({}).select('userId username').limit(5)
+        }
+      })
+    }
+    
+    if (!instagramUser.isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Instagram account is not connected. Please reconnect your Instagram account.',
+        debug: {
+          userId: userId,
+          instagramUsername: instagramUser.username,
+          isConnected: instagramUser.isConnected,
+          lastConnected: instagramUser.lastConnected
+        }
       })
     }
 
@@ -731,7 +796,13 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     if (!instagramUser.permissions?.includes('instagram_manage_messages')) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Missing required permission: instagram_manage_messages. Please reconnect your Instagram account.' 
+        error: 'Missing required permission: instagram_manage_messages. Please reconnect your Instagram account with the correct permissions.',
+        debug: {
+          userId: userId,
+          instagramUsername: instagramUser.username,
+          currentPermissions: instagramUser.permissions,
+          requiredPermissions: ['instagram_manage_messages']
+        }
       })
     }
 
@@ -807,6 +878,27 @@ router.get('/conversations', authMiddleware, async (req, res) => {
       }
     }))
 
+    // If no conversations found, return empty array with helpful message
+    if (conversations.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          conversations: [],
+          total: 0,
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          note: 'No Instagram conversations found. This could mean: 1) No DMs yet, 2) Account is new, 3) Permissions need to be updated',
+          source: 'instagram_graph_api',
+          permissions: instagramUser.permissions,
+          debug: {
+            igUserId,
+            hasAccessToken: !!accessToken,
+            permissions: instagramUser.permissions
+          }
+        }
+      })
+    }
+
     res.json({
       success: true,
       data: {
@@ -825,6 +917,73 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to get Instagram conversations',
+      details: error.message
+    })
+  }
+})
+
+// Simple conversations endpoint for testing (no Instagram connection required)
+router.get('/conversations/test', authMiddleware, async (req, res) => {
+  try {
+    console.log('🧪 Test Conversations Route Called:', {
+      timestamp: new Date().toISOString(),
+      user: req.user,
+      userId: req.user?.id
+    })
+    
+    // Return test conversations for development
+    const testConversations = [
+      {
+        id: 'test_conv_1',
+        recipientId: 'test_user_1',
+        fullName: 'Test User 1',
+        avatar: null,
+        timestamp: new Date().toLocaleString(),
+        lastMessage: 'This is a test conversation for development',
+        messageCount: 1,
+        unreadCount: 0,
+        _instagramData: {
+          conversationId: 'test_conv_1',
+          updatedTime: Date.now() / 1000,
+          rawData: { id: 'test_conv_1' }
+        }
+      },
+      {
+        id: 'test_conv_2',
+        recipientId: 'test_user_2',
+        fullName: 'Test User 2',
+        avatar: null,
+        timestamp: new Date().toLocaleString(),
+        lastMessage: 'Another test conversation',
+        messageCount: 1,
+        unreadCount: 0,
+        _instagramData: {
+          conversationId: 'test_conv_2',
+          updatedTime: Date.now() / 1000,
+          rawData: { id: 'test_conv_2' }
+        }
+      }
+    ]
+    
+    res.json({
+      success: true,
+      data: {
+        conversations: testConversations,
+        total: testConversations.length,
+        note: 'Test conversations for development - no Instagram connection required',
+        source: 'test_data',
+        debug: {
+          userId: req.user.id,
+          timestamp: new Date().toISOString()
+        }
+      }
+    })
+    
+  } catch (error) {
+    console.error('❌ Test conversations error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get test conversations',
       details: error.message
     })
   }

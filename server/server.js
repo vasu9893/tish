@@ -90,13 +90,19 @@ console.log('🔌 Webhook processor connected to Socket.IO for real-time broadca
 io.use((socket, next) => {
   const token = socket.handshake.auth.token
   
+  // For development/MVP, allow connections without tokens
+  // In production, you would require a valid JWT token here
   if (!token) {
-    return next(new Error('Authentication error'))
+    console.log('⚠️ Socket.IO: No token provided, allowing connection for development')
+    socket.userId = 'dev_user_' + Date.now()
+    socket.isDevelopment = true
+  } else {
+    // In production, verify JWT token here
+    // const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    socket.userId = 'user_' + Date.now()
+    socket.isDevelopment = false
   }
   
-  // For MVP, we'll accept any token
-  // In production, verify JWT here
-  socket.userId = 'user_' + Date.now()
   next()
 })
 
@@ -122,14 +128,24 @@ io.on('connection', (socket) => {
   // Handle authentication for notifications
   socket.on('authenticate', async (data) => {
     try {
-      console.log('🔐 Socket.IO authentication request:', { socketId: socket.id, userId: data.userId })
+      console.log('🔐 Socket.IO authentication request:', { socketId: socket.id, userId: data.userId, isDevelopment: socket.isDevelopment })
       
-      // In production, verify JWT token here
-      // const decoded = jwt.verify(data.token, process.env.JWT_SECRET)
-      
-      clientInfo.userId = data.userId || socket.userId
-      clientInfo.authenticated = true
-      connectedClients.set(clientInfo.userId, clientInfo)
+      // For development, allow authentication without tokens
+      if (socket.isDevelopment) {
+        clientInfo.userId = data.userId || socket.userId
+        clientInfo.authenticated = true
+        connectedClients.set(clientInfo.userId, clientInfo)
+        
+        console.log('✅ Development client authenticated:', clientInfo.userId, 'Socket:', socket.id)
+      } else {
+        // In production, verify JWT token here
+        // const decoded = jwt.verify(data.token, process.env.JWT_SECRET)
+        clientInfo.userId = data.userId || socket.userId
+        clientInfo.authenticated = true
+        connectedClients.set(clientInfo.userId, clientInfo)
+        
+        console.log('✅ Production client authenticated:', clientInfo.userId, 'Socket:', socket.id)
+      }
       
       // Send success response
       socket.emit('auth_success', {
@@ -137,8 +153,6 @@ io.on('connection', (socket) => {
         userId: clientInfo.userId,
         timestamp: Date.now()
       })
-      
-      console.log('✅ Client authenticated:', clientInfo.userId, 'Socket:', socket.id)
       
       // Send connection info
       socket.emit('connection_info', {
