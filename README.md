@@ -10,12 +10,14 @@
 - **Security Features**: Two-factor authentication (2FA) and login notifications
 - **Account Management**: Profile updates, avatar changes, and account deletion
 
-### 📱 **Instagram Integration**
-- **Instagram Business Login**: Direct Instagram authentication using Instagram Business Login API
-- **Real-time Messaging**: Send and receive Instagram Direct Messages
-- **Advanced Permissions**: Manage messages, comments, and publish content
-- **Webhook Support**: Receive instant notifications for incoming messages
-- **Account Management**: View Instagram account details and manage connections
+### 📱 **Instagram Integration (v2.0)**
+- **Instagram Graph API**: Real-time access to Instagram conversations and messages
+- **Facebook OAuth**: Secure authentication through Facebook's OAuth system
+- **Advanced Permissions**: `instagram_manage_messages` and `instagram_basic` scopes
+- **Real-time Conversations**: Live access to DM threads and message history
+- **Message Details**: Full message content, timestamps, and sender information
+- **API Limitations**: Handles Instagram's 20-message limit per conversation
+- **Error Handling**: Robust error handling for API responses and rate limiting
 
 ### 🤖 **Bot Flow Builder**
 - **Visual Flow Editor**: Drag-and-drop interface using React Flow
@@ -126,11 +128,13 @@ npm run dev
 - `POST /api/user/2fa/enable` - Enable 2FA
 - `DELETE /api/user/delete` - Delete account
 
-### **Instagram Integration**
+### **Instagram Integration (v2.0)**
 - `GET /api/instagram/status` - Check connection status
+- `GET /api/instagram/conversations` - Get real-time conversations from Instagram Graph API
+- `GET /api/instagram/conversations/:id/messages` - Get messages from specific conversation
+- `POST /api/instagram/send-message` - Send message
 - `POST /api/instagram/disconnect` - Disconnect account
 - `GET /api/instagram/account` - Get account details
-- `POST /api/instagram/send-message` - Send message
 
 ### **Flow Management**
 - `POST /api/flow/save` - Save automation flow
@@ -145,12 +149,13 @@ npm run dev
 
 ## 🔧 Configuration
 
-### **Meta App Setup**
+### **Meta App Setup (Instagram Graph API)**
 1. Create app in [Meta Developer Console](https://developers.facebook.com/)
-2. Add Instagram Basic Display product
-3. Configure OAuth redirect URIs
+2. Add Instagram Graph API product
+3. Configure Facebook OAuth redirect URIs
 4. Set webhook verification token
-5. Add required permissions
+5. Add required permissions: `instagram_manage_messages`, `instagram_basic`
+6. Configure Instagram Business Login for your app
 
 ### **MongoDB Atlas**
 1. Create cluster in MongoDB Atlas
@@ -170,11 +175,13 @@ MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/instantchat
 # Authentication
 JWT_SECRET=your_super_secret_jwt_key
 
-# Meta/Instagram
+# Meta/Instagram (v2.0)
+INSTAGRAM_APP_ID=your_instagram_app_id
+INSTAGRAM_APP_SECRET=your_instagram_app_secret
 META_APP_ID=your_meta_app_id
 META_APP_SECRET=your_meta_app_secret
 META_VERIFY_TOKEN=instantchat_webhook_2024_secure_token
-META_GRAPH_URL=https://graph.facebook.com/v18.0
+META_GRAPH_URL=https://graph.facebook.com/v21.0
 
 # Client Configuration
 CLIENT_URL=http://localhost:5173
@@ -270,6 +277,12 @@ curl -X POST "https://your-domain.com/api/auth/login" \
 - Automation engine
 - Real API integration
 - Production-ready deployment
+
+### **Phase 5** ✅ **COMPLETED**
+- Instagram Graph API integration
+- Real-time conversation access
+- Facebook OAuth implementation
+- Advanced message handling
 
 ### **Future Enhancements**
 - **Analytics Dashboard**: Message metrics and engagement analytics

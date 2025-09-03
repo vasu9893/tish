@@ -319,7 +319,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
       error: tokenResponse.error,
       permissions: tokenResponse.data?.permissions
     })
-
+    
     if (!tokenResponse.success) {
       console.error('Token exchange failed:', tokenResponse.error)
       const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
@@ -387,8 +387,8 @@ router.get('/auth/instagram/callback', async (req, res) => {
     try {
       // For now, use a dummy user ID - in production, extract from JWT token
       const dummyUserId = 'user_' + Date.now() // This should be extracted from authenticated user
-      
-      const instagramUser = await InstagramUser.findOneAndUpdate(
+    
+    const instagramUser = await InstagramUser.findOneAndUpdate(
         { instagramAccountId: instagramUserId },
         {
           userId: dummyUserId,
@@ -398,23 +398,23 @@ router.get('/auth/instagram/callback', async (req, res) => {
           instagramAccessToken: finalToken,
           accountType: 'business', // Instagram Business Login
           tokenExpiresAt: expiresAt,
-          isConnected: true,
-          lastConnected: new Date(),
+        isConnected: true,
+        lastConnected: new Date(),
           permissions: permissions || [],
-          webhookSubscribed: false,
+        webhookSubscribed: false,
           // Instagram Business Login specific fields
           pageId: null, // Not applicable for Business Login
           pageAccessToken: null, // Not applicable for Business Login
           longLivedToken: longLivedTokenResponse.success ? finalToken : null,
-          userAccessToken: null
-        },
-        { upsert: true, new: true }
-      )
-      
+        userAccessToken: null
+      },
+      { upsert: true, new: true }
+    )
+    
       console.log('✅ Instagram connection saved to database:', {
-        id: instagramUser._id,
-        userId: instagramUser.userId,
-        username: instagramUser.username,
+      id: instagramUser._id,
+      userId: instagramUser.userId,
+      username: instagramUser.username,
         instagramAccountId: instagramUser.instagramAccountId,
         isConnected: instagramUser.isConnected,
         tokenExpiresAt: instagramUser.tokenExpiresAt
@@ -424,7 +424,7 @@ router.get('/auth/instagram/callback', async (req, res) => {
       console.error('❌ Failed to save Instagram connection to database:', dbError)
       // Continue with redirect even if database save fails
     }
-
+    
     // Redirect to frontend with success parameters
     const clientUrl = process.env.CLIENT_URL || 'https://instantchat.in'
     const redirectUrl = `${clientUrl}/dashboard?instagram=success&username=${encodeURIComponent(instagramConnectionData.username)}&userId=${encodeURIComponent(instagramUserId)}&permissions=${encodeURIComponent(permissions?.join(',') || '')}`
@@ -702,7 +702,7 @@ router.get('/status', authMiddleware, async (req, res) => {
   }
 })
 
-// Get Instagram conversations (from local database)
+// Get Instagram conversations (from Instagram Graph API)
 router.get('/conversations', authMiddleware, async (req, res) => {
   console.log('🔍 Instagram Conversations Route Called:', {
     timestamp: new Date().toISOString(),
@@ -712,6 +712,7 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     user: req.user,
     hasAuth: !!req.user
   })
+  
   try {
     const userId = req.user.id
     const { limit = 50, offset = 0 } = req.query
@@ -726,57 +727,96 @@ router.get('/conversations', authMiddleware, async (req, res) => {
       })
     }
 
-    // Get conversations from local messages
-    const conversations = await Message.aggregate([
-      { 
-        $match: { 
-          userId: userId, 
-          room: 'instagram'
-        } 
-      },
-      {
-        $group: {
-          _id: '$instagramSenderId',
-          lastMessage: { $last: '$$ROOT' },
-          messageCount: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { 'lastMessage.timestamp': -1 }
-      },
-      {
-        $skip: parseInt(offset)
-      },
-      {
-        $limit: parseInt(limit)
-      }
-    ])
+    // Check if we have the required permissions
+    if (!instagramUser.permissions?.includes('instagram_manage_messages')) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required permission: instagram_manage_messages. Please reconnect your Instagram account.' 
+      })
+    }
 
-    const total = await Message.countDocuments({
-      userId: userId,
-      room: 'instagram'
+    // Call Instagram Graph API to get real conversations
+    const igUserId = instagramUser.instagramAccountId
+    const accessToken = instagramUser.instagramAccessToken
+    
+    console.log('📡 Calling Instagram Graph API for conversations:', {
+      igUserId,
+      hasToken: !!accessToken,
+      permissions: instagramUser.permissions
     })
+
+    // Build Graph API URL
+    const graphUrl = `https://graph.instagram.com/v23.0/${igUserId}/conversations?platform=instagram&access_token=${accessToken}`
+    
+    console.log('🔗 Graph API URL:', graphUrl.replace(accessToken, '***TOKEN***'))
+
+    // Make request to Instagram Graph API
+    const response = await fetch(graphUrl)
+    const responseText = await response.text()
+    
+    // Check if response is JSON (prevent "Unexpected token '<'" errors)
+    if (!response.headers.get('content-type')?.includes('application/json')) {
+      console.error('❌ Instagram Graph API returned non-JSON response:', {
+        status: response.status,
+        contentType: response.headers.get('content-type'),
+        body: responseText.slice(0, 500)
+      })
+      
+      return res.status(response.status).json({
+        success: false,
+        error: 'Instagram API returned non-JSON response',
+        status: response.status,
+        body: responseText.slice(0, 500),
+        note: 'This usually means the API endpoint is not accessible or there\'s an authentication issue'
+      })
+    }
+
+    const graphData = JSON.parse(responseText)
+    
+    console.log('✅ Instagram Graph API response:', {
+      success: response.ok,
+      status: response.status,
+      hasData: !!graphData.data,
+      conversationCount: graphData.data?.length || 0
+    })
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: 'Instagram Graph API error',
+        details: graphData,
+        status: response.status
+      })
+    }
+
+    // Transform Instagram API response to match frontend expectations
+    const conversations = (graphData.data || []).map(conv => ({
+      id: conv.id,
+      recipientId: conv.id,
+      fullName: `Instagram User (${conv.id.slice(-8)})`, // We'll get real names from messages
+      avatar: null,
+      timestamp: conv.updated_time ? new Date(parseInt(conv.updated_time) * 1000).toLocaleString() : 'Unknown',
+      lastMessage: 'Loading...', // Will be populated when messages are fetched
+      messageCount: 0, // Will be populated when messages are fetched
+      unreadCount: 0,
+      // Instagram API specific data
+      _instagramData: {
+        conversationId: conv.id,
+        updatedTime: conv.updated_time,
+        rawData: conv
+      }
+    }))
 
     res.json({
       success: true,
       data: {
-        conversations: conversations.map(conv => ({
-          id: conv._id,                    // Frontend expects 'id'
-          recipientId: conv._id,           // Keep for backward compatibility
-          fullName: conv.lastMessage?.sender || `User ${conv._id.slice(-6)}`, // Extract from sender
-          avatar: null,                    // No avatar data available
-          timestamp: conv.lastMessage?.timestamp ? 
-            new Date(conv.lastMessage.timestamp).toLocaleString() : 'Unknown',
-          lastMessage: conv.lastMessage?.content || 'No messages',  // Extract content
-          messageCount: conv.messageCount,
-          unreadCount: 0,                  // Default to 0 (no unread tracking yet)
-          // Additional data for debugging
-          _lastMessageObj: conv.lastMessage
-        })),
-        total,
+        conversations,
+        total: conversations.length,
         limit: parseInt(limit),
         offset: parseInt(offset),
-        note: 'Data from local database only (Instagram Basic Display API limitation)'
+        note: 'Real-time data from Instagram Graph API',
+        source: 'instagram_graph_api',
+        permissions: instagramUser.permissions
       }
     })
 
@@ -784,16 +824,17 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     console.error('Get Instagram conversations error:', error)
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to get Instagram conversations' 
+      error: 'Failed to get Instagram conversations',
+      details: error.message
     })
   }
 })
 
-// Get conversation messages
-router.get('/conversations/:recipientId/messages', authMiddleware, async (req, res) => {
+// Get conversation messages (from Instagram Graph API)
+router.get('/conversations/:conversationId/messages', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id
-    const { recipientId } = req.params
+    const { conversationId } = req.params
     const { limit = 100, offset = 0 } = req.query
 
     // Get user's Instagram connection
@@ -806,43 +847,140 @@ router.get('/conversations/:recipientId/messages', authMiddleware, async (req, r
       })
     }
 
-    // Get messages for this conversation from local database
-    const messages = await Message.find({
-      userId: userId,
-      room: 'instagram',
-      $or: [
-        { instagramSenderId: recipientId },
-        { instagramRecipientId: recipientId }
-      ]
-    })
-    .sort({ timestamp: -1 })
-    .skip(parseInt(offset))
-    .limit(parseInt(limit))
+    // Check if we have the required permissions
+    if (!instagramUser.permissions?.includes('instagram_manage_messages')) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required permission: instagram_manage_messages. Please reconnect your Instagram account.' 
+      })
+    }
 
-    // Transform messages to match frontend expectations
-    const transformedMessages = messages.reverse().map(msg => ({
-      id: msg._id.toString(),
-      content: msg.content,
-      sender: msg.sender,
-      timestamp: msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown',
-      isFromUser: msg.isToInstagram || false,
-      isFromInstagram: msg.isFromInstagram || false,
-      isInstagram: true,
-      messageType: msg.messageType || 'text',
-      instagramSenderId: msg.instagramSenderId,
-      instagramMessageId: msg.instagramMessageId,
-      source: msg.source || 'instagram'
-    }))
+    const accessToken = instagramUser.instagramAccessToken
+    
+    console.log('📡 Fetching messages for conversation:', {
+      conversationId,
+      userId,
+      hasToken: !!accessToken
+    })
+
+    // Step 1: Get message IDs from conversation
+    const conversationUrl = `https://graph.instagram.com/v23.0/${conversationId}?fields=messages&access_token=${accessToken}`
+    
+    const convResponse = await fetch(conversationUrl)
+    const convText = await convResponse.text()
+    
+    // Check if response is JSON
+    if (!convResponse.headers.get('content-type')?.includes('application/json')) {
+      console.error('❌ Instagram Graph API returned non-JSON for conversation:', {
+        status: convResponse.status,
+        contentType: convResponse.headers.get('content-type'),
+        body: convText.slice(0, 500)
+      })
+      
+      return res.status(convResponse.status).json({
+        success: false,
+        error: 'Instagram API returned non-JSON response for conversation',
+        status: convResponse.status,
+        body: convText.slice(0, 500)
+      })
+    }
+
+    const convData = JSON.parse(convText)
+    
+    if (!convResponse.ok) {
+      return res.status(convResponse.status).json({
+        success: false,
+        error: 'Instagram Graph API error for conversation',
+        details: convData,
+        status: convResponse.status
+      })
+    }
+
+    const messageIds = convData.messages?.data || []
+    console.log('📝 Found message IDs:', messageIds.length)
+
+    // Step 2: Get details for each message (limited to 20 most recent as per Instagram API docs)
+    const messages = []
+    const recentMessageIds = messageIds.slice(0, 20) // Instagram only allows 20 most recent
+
+    for (const msgRef of recentMessageIds) {
+      try {
+        const messageUrl = `https://graph.instagram.com/v23.0/${msgRef.id}?fields=id,created_time,from,to,message&access_token=${accessToken}`
+        
+        const msgResponse = await fetch(messageUrl)
+        const msgText = await msgResponse.text()
+        
+        if (msgResponse.ok && msgResponse.headers.get('content-type')?.includes('application/json')) {
+          const msgData = JSON.parse(msgText)
+          
+          // Transform Instagram message to frontend format
+          const message = {
+            id: msgData.id,
+            content: msgData.message || 'No content',
+            sender: msgData.from?.username || `User ${msgData.from?.id?.slice(-8) || 'Unknown'}`,
+            timestamp: msgData.created_time ? new Date(msgData.created_time).toLocaleString() : 'Unknown',
+            isFromUser: msgData.from?.id === instagramUser.instagramAccountId,
+            isFromInstagram: msgData.from?.id !== instagramUser.instagramAccountId,
+            isInstagram: true,
+            messageType: 'text',
+            instagramSenderId: msgData.from?.id,
+            instagramMessageId: msgData.id,
+            source: 'instagram_graph_api',
+            // Instagram API specific data
+            _instagramData: {
+              createdTime: msgData.created_time,
+              to: msgData.to,
+              from: msgData.from,
+              rawData: msgData
+            }
+          }
+          
+          messages.push(message)
+        } else {
+          console.warn('⚠️ Failed to fetch message details:', {
+            messageId: msgRef.id,
+            status: msgResponse.status,
+            body: msgText.slice(0, 200)
+          })
+        }
+        
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+      } catch (error) {
+        console.error('❌ Error fetching message details:', {
+          messageId: msgRef.id,
+          error: error.message
+        })
+      }
+    }
+
+    // Sort messages by creation time (oldest first)
+    messages.sort((a, b) => {
+      const timeA = a._instagramData?.createdTime ? new Date(a._instagramData.createdTime) : new Date(0)
+      const timeB = b._instagramData?.createdTime ? new Date(b._instagramData.createdTime) : new Date(0)
+      return timeA - timeB
+    })
+
+    console.log('✅ Successfully fetched messages:', {
+      conversationId,
+      totalMessages: messageIds.length,
+      fetchedMessages: messages.length,
+      note: 'Instagram API only allows access to 20 most recent messages per conversation'
+    })
 
     res.json({
       success: true,
       data: {
-        messages: transformedMessages,
-        recipientId,
-        total: messages.length,
+        messages,
+        recipientId: conversationId,
+        total: messageIds.length,
+        fetched: messages.length,
         limit: parseInt(limit),
         offset: parseInt(offset),
-        note: 'Data from local database only (Instagram Basic Display API limitation)'
+        note: 'Real-time data from Instagram Graph API (20 most recent messages)',
+        source: 'instagram_graph_api',
+        limitations: 'Instagram API only provides access to 20 most recent messages per conversation'
       }
     })
 
@@ -850,7 +988,8 @@ router.get('/conversations/:recipientId/messages', authMiddleware, async (req, r
     console.error('Get conversation messages error:', error)
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to get conversation messages' 
+      error: 'Failed to get conversation messages',
+      details: error.message
     })
   }
 })
