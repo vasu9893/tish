@@ -32,6 +32,9 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 })
 
+// Track connected clients for heartbeat monitoring
+const connectedClients = new Map()
+
 // Connect to MongoDB
 connectDB()
 
@@ -91,6 +94,10 @@ console.log('🔌 Webhook processor connected to Socket.IO for real-time broadca
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id)
   
+  // Track client connection
+  socket.connectedAt = Date.now()
+  socket.lastHeartbeat = Date.now()
+  
   // Handle user authentication
   socket.on('authenticate', (data) => {
     try {
@@ -98,9 +105,18 @@ io.on('connection', (socket) => {
       const decoded = jwt.verify(data.token, process.env.JWT_SECRET || 'fallback_secret')
       socket.userId = decoded.user.id
       socket.username = decoded.user.username
+      socket.authenticated = true
       
       // Join user-specific room
       socket.join(`user_${socket.userId}`)
+      
+      // Add to connected clients tracking
+      connectedClients.set(socket.userId, {
+        socket: socket,
+        authenticated: true,
+        lastHeartbeat: Date.now(),
+        connectedAt: socket.connectedAt
+      })
       
       console.log(`✅ User authenticated: ${socket.username} (${socket.userId})`)
       socket.emit('authenticated', { success: true, user: decoded.user })
@@ -127,8 +143,23 @@ io.on('connection', (socket) => {
     }
   })
   
+  // Handle heartbeat
+  socket.on('heartbeat', () => {
+    if (socket.userId && connectedClients.has(socket.userId)) {
+      const clientInfo = connectedClients.get(socket.userId)
+      clientInfo.lastHeartbeat = Date.now()
+      connectedClients.set(socket.userId, clientInfo)
+    }
+  })
+  
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id)
+    
+    // Remove from connected clients tracking
+    if (socket.userId && connectedClients.has(socket.userId)) {
+      connectedClients.delete(socket.userId)
+      console.log(`🗑️ Removed client ${socket.userId} from tracking`)
+    }
   })
 })
 

@@ -1001,7 +1001,7 @@ router.get('/conversations', authMiddleware, async (req, res) => {
         success: false, 
         error: 'Instagram account is not connected. Please reconnect your Instagram account.',
         debug: {
-          userId: userId,
+          userId: userId, 
           instagramUsername: instagramUser.username,
           isConnected: instagramUser.isConnected,
           lastConnected: instagramUser.lastConnected
@@ -1015,7 +1015,7 @@ router.get('/conversations', authMiddleware, async (req, res) => {
         success: false, 
         error: 'Missing required permission: instagram_manage_messages. Please reconnect your Instagram account with the correct permissions.',
         debug: {
-          userId: userId,
+      userId: userId,
           instagramUsername: instagramUser.username,
           currentPermissions: instagramUser.permissions,
           requiredPermissions: ['instagram_manage_messages']
@@ -1527,11 +1527,11 @@ router.get('/webhook/status', authMiddleware, async (req, res) => {
       isProcessed: true 
     });
 
-    res.json({
-      success: true,
+  res.json({
+    success: true,
       status: 'active',
       message: 'Instagram webhook is active',
-      webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`,
+    webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`,
       stats: {
         totalEvents: eventCount,
         processedEvents: processedCount,
@@ -1575,7 +1575,7 @@ router.get('/webhook/events', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('❌ Webhook events error:', error);
     res.status(500).json({
-      success: false,
+        success: false, 
       error: 'Failed to get webhook events'
     });
   }
@@ -1618,7 +1618,7 @@ router.post('/webhook/test', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('❌ Webhook test error:', error);
     res.status(500).json({
-      success: false,
+        success: false, 
       error: 'Failed to create test webhook event'
     });
   }
@@ -1655,7 +1655,7 @@ router.post('/webhook', async (req, res) => {
     for (const entry of entries) {
       const changes = entry.changes || [];
       
-      for (const change of changes) {
+        for (const change of changes) {
         if (change.value && change.value.item) {
           const item = change.value.item;
           
@@ -1752,7 +1752,7 @@ async function handleMentionEvent(item, pageId) {
     
     console.log('✅ Mention event processed:', notification.id);
     
-  } catch (error) {
+          } catch (error) {
     console.error('❌ Error processing mention event:', error);
   }
 }
@@ -1851,7 +1851,7 @@ async function storeNotification(notification, pageId) {
       await webhookEvent.save();
       console.log('💾 Webhook event stored in database:', webhookEvent._id);
     }
-    
+
   } catch (error) {
     console.error('❌ Error storing webhook event:', error);
   }
