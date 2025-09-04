@@ -325,6 +325,14 @@ class WebhookProcessor {
     try {
       const { field, value } = change;
       
+      console.log('🔍 Parsing Instagram change:', {
+        field,
+        accountId,
+        hasValue: !!value,
+        valueKeys: value ? Object.keys(value) : [],
+        valueItem: value?.item ? Object.keys(value.item) : []
+      });
+      
       // Map field to event type
       const eventTypeMap = {
         'comments': 'comments',
@@ -343,9 +351,16 @@ class WebhookProcessor {
         return null;
       }
 
+      console.log('✅ Mapped field to event type:', { field, eventType });
+
       // Extract event data based on type
       const eventData = this.extractEventData(eventType, value, accountId);
-      if (!eventData) return null;
+      if (!eventData) {
+        console.error('❌ extractEventData returned null for:', { eventType, value });
+        return null;
+      }
+
+      console.log('✅ Extracted event data:', { eventType, eventData });
 
       return {
         eventType,
@@ -364,6 +379,14 @@ class WebhookProcessor {
    */
   extractEventData(eventType, value, accountId) {
     try {
+      console.log('🔍 Extracting event data:', {
+        eventType,
+        accountId,
+        hasValue: !!value,
+        valueKeys: value ? Object.keys(value) : [],
+        valueStructure: value
+      });
+
       switch (eventType) {
         case 'comments':
         case 'live_comments':
@@ -391,25 +414,47 @@ class WebhookProcessor {
    * Extract comment data
    */
   extractCommentData(value, accountId) {
-    if (!value || !value.comment_id) return null;
+    console.log('🔍 Extracting comment data:', {
+      hasValue: !!value,
+      hasItem: !!value?.item,
+      valueKeys: value ? Object.keys(value) : [],
+      itemKeys: value?.item ? Object.keys(value.item) : []
+    });
 
-    return {
-      senderId: value.from?.id || 'unknown',
+    // Handle Instagram webhook comment structure: value.item
+    if (!value || !value.item) {
+      console.log('❌ No value.item found in comment data');
+      return null;
+    }
+
+    const item = value.item;
+    
+    const eventData = {
+      id: `comment_${item.id || Date.now()}`,
+      senderId: item.from?.id || item.user?.id || 'unknown',
       recipientId: accountId,
+      timestamp: new Date().toISOString(),
       content: {
-        text: value.text || '',
-        mediaUrl: value.media?.url || null,
-        mediaType: value.media?.type || null,
-        replyTo: value.reply_to?.comment_id || null,
-        parentId: value.media?.id || null
+        text: item.text || item.message || '',
+        mediaUrl: item.media?.url || null,
+        mediaType: item.media?.type || null,
+        replyTo: item.reply_to?.comment_id || null,
+        parentId: item.media?.id || item.parent_id || null
       },
       userInfo: {
-        username: value.from?.username || 'unknown',
-        fullName: value.from?.name || 'Unknown User',
-        profilePicture: value.from?.profile_picture_url || null,
-        verified: value.from?.verified || false
+        username: item.from?.username || item.user?.username || 'unknown',
+        fullName: item.from?.name || item.user?.name || 'Unknown User',
+        profilePicture: item.from?.profile_picture_url || item.user?.profile_picture_url || null,
+        verified: item.from?.verified || item.user?.verified || false
+      },
+      metadata: {
+        originalItem: item,
+        originalValue: value
       }
     };
+
+    console.log('✅ Successfully extracted comment data:', eventData);
+    return eventData;
   }
 
   /**
