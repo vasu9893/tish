@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Debug Tool - InstantChat</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .header h1 {
+            color: #333;
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .form-group textarea {
+            height: 120px;
+            resize: vertical;
+        }
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 JWT Debug Tool</h1>
+            <p>Debug and analyze JWT tokens for InstantChat</p>
+        </div>
+
+        <div class="form-group">
+            <label>JWT Token:</label>
+            <textarea id="jwtToken" placeholder="Paste your JWT token here...">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjhiODdlMTFmYjVjMDY0M2YyMDllYmUxIiwidXNlcm5hbWUiOiJWYXN1IFJhbSIsImVtYWlsIjoidnI4MTIwMTY4NDM5QGdtYWlsLmNvbSJ9LCJpYXQiOjE3NTY5MjEzNjEsImV4cCI6MTc1NzAwNzc2MX0.L0etTefGu7NSsSs1BUnRURf5_TijBwwxGgZyVqm08Is</textarea>
+        </div>
+
+        <div class="form-group">
+            <label>JWT Secret (optional):</label>
+            <input type="password" id="jwtSecret" placeholder="Enter JWT secret to verify token...">
+        </div>
+
+        <div>
+            <button class="button" onclick="decodeJWT()">🔍 Decode JWT</button>
+            <button class="button" onclick="verifyJWT()">✅ Verify JWT</button>
+            <button class="button" onclick="testWithServer()">🌐 Test with Server</button>
+            <button class="button" onclick="clearResults()">🗑️ Clear</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
+    <script>
+        const BACKEND_URL = 'https://tish-production.up.railway.app';
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function decodeJWT() {
+            const token = document.getElementById('jwtToken').value.trim();
+            
+            if (!token) {
+                log('❌ Please enter a JWT token', 'error');
+                return;
+            }
+
+            try {
+                // Decode without verification
+                const decoded = jwt_decode(token);
+                
+                log('✅ JWT Decoded Successfully:\n' + JSON.stringify(decoded, null, 2), 'success');
+                
+                // Check expiration
+                if (decoded.exp) {
+                    const expDate = new Date(decoded.exp * 1000);
+                    const now = new Date();
+                    
+                    if (expDate < now) {
+                        log(`⚠️ Token is EXPIRED!\nExpired at: ${expDate.toISOString()}\nCurrent time: ${now.toISOString()}`, 'warning');
+                    } else {
+                        log(`✅ Token is VALID until: ${expDate.toISOString()}`, 'success');
+                    }
+                }
+                
+                // Check issued at
+                if (decoded.iat) {
+                    const iatDate = new Date(decoded.iat * 1000);
+                    log(`📅 Token issued at: ${iatDate.toISOString()}`, 'info');
+                }
+                
+            } catch (error) {
+                log(`❌ Failed to decode JWT: ${error.message}`, 'error');
+            }
+        }
+
+        function verifyJWT() {
+            const token = document.getElementById('jwtToken').value.trim();
+            const secret = document.getElementById('jwtSecret').value.trim();
+            
+            if (!token) {
+                log('❌ Please enter a JWT token', 'error');
+                return;
+            }
+            
+            if (!secret) {
+                log('⚠️ No JWT secret provided. Cannot verify signature.', 'warning');
+                return;
+            }
+
+            try {
+                // This would require a JWT library that can verify
+                // For now, just show that we would verify with the secret
+                log(`🔐 Would verify JWT with secret length: ${secret.length}`, 'info');
+                log('Note: Full verification requires server-side processing', 'info');
+                
+            } catch (error) {
+                log(`❌ Verification error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWithServer() {
+            const token = document.getElementById('jwtToken').value.trim();
+            
+            if (!token) {
+                log('❌ Please enter a JWT token', 'error');
+                return;
+            }
+
+            log('🌐 Testing JWT with server...', 'info');
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/instagram/status`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Server accepted JWT!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    log(`❌ Server rejected JWT!\nStatus: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-decode on page load
+        window.onload = function() {
+            const token = document.getElementById('jwtToken').value;
+            if (token) {
+                decodeJWT();
+            }
+        };
+    </script>
+</body>
+</html>

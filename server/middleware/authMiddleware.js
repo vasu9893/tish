@@ -46,13 +46,21 @@ const authMiddleware = (req, res, next) => {
       next()
       
     } catch (jwtError) {
-      console.log('❌ JWT verification failed:', jwtError.message)
+      console.log('❌ JWT verification failed:', {
+        error: jwtError.message,
+        name: jwtError.name,
+        tokenLength: token.length,
+        tokenStart: token.substring(0, 20) + '...',
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        jwtSecretLength: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0
+      })
       
       // Check if it's an expired token
       if (jwtError.name === 'TokenExpiredError') {
         return res.status(401).json({ 
           success: false,
-          error: 'Token expired' 
+          error: 'Token expired',
+          details: jwtError.message
         })
       }
       
@@ -60,14 +68,25 @@ const authMiddleware = (req, res, next) => {
       if (jwtError.name === 'JsonWebTokenError') {
         return res.status(401).json({ 
           success: false,
-          error: 'Invalid token' 
+          error: 'Invalid token',
+          details: jwtError.message
+        })
+      }
+      
+      // Check if it's a malformed token
+      if (jwtError.name === 'JsonWebTokenError' && jwtError.message.includes('malformed')) {
+        return res.status(401).json({ 
+          success: false,
+          error: 'Malformed token',
+          details: 'The token format is invalid. Please login again.'
         })
       }
       
       // Other JWT errors
       return res.status(401).json({ 
         success: false,
-        error: 'Token verification failed' 
+        error: 'Token verification failed',
+        details: jwtError.message
       })
     }
     
