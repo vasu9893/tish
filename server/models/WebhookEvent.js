@@ -42,7 +42,7 @@ const webhookEventSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Make it optional for webhook events without user association
   },
   isProcessed: {
     type: Boolean,
