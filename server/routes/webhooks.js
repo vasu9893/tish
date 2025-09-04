@@ -61,6 +61,10 @@ router.post('/instagram', async (req, res) => {
         parsedBody = req.body;
         console.log('📋 Webhook body already parsed, keys:', parsedBody ? Object.keys(parsedBody) : []);
       }
+      
+      // Log the full payload structure for debugging
+      console.log('📋 Full webhook payload:', JSON.stringify(parsedBody, null, 2));
+      
     } catch (parseError) {
       console.error('❌ Failed to parse webhook body:', parseError);
       return res.status(400).json({

@@ -210,26 +210,111 @@ class WebhookProcessor {
    */
   parsePayload(payload) {
     try {
+      console.log('🔍 Parsing webhook payload:', {
+        object: payload.object,
+        hasEntry: !!payload.entry,
+        entryType: Array.isArray(payload.entry) ? 'array' : typeof payload.entry,
+        entryLength: Array.isArray(payload.entry) ? payload.entry.length : 'N/A',
+        payloadKeys: Object.keys(payload)
+      });
+
       const events = [];
       
       // Handle different payload structures
       if (payload.object === 'instagram') {
         if (payload.entry && Array.isArray(payload.entry)) {
+          console.log('📋 Processing Instagram entries:', payload.entry.length);
+          
           for (const entry of payload.entry) {
+            console.log('📝 Processing entry:', {
+              id: entry.id,
+              hasChanges: !!entry.changes,
+              changesType: Array.isArray(entry.changes) ? 'array' : typeof entry.changes,
+              changesLength: Array.isArray(entry.changes) ? entry.changes.length : 'N/A',
+              entryKeys: Object.keys(entry)
+            });
+            
+            // Handle entries with changes array (standard webhook format)
             if (entry.changes && Array.isArray(entry.changes)) {
               for (const change of entry.changes) {
+                console.log('🔄 Processing change:', {
+                  field: change.field,
+                  hasValue: !!change.value,
+                  valueKeys: change.value ? Object.keys(change.value) : []
+                });
+                
                 const event = this.parseInstagramChange(entry.id, change);
-                if (event) events.push(event);
+                if (event) {
+                  console.log('✅ Created event:', event.eventType);
+                  events.push(event);
+                } else {
+                  console.log('❌ Failed to create event from change');
+                }
               }
             }
+            // Handle entries without changes (direct event format)
+            else if (entry.id && entry.time) {
+              console.log('🔄 Processing direct entry event');
+              const event = this.parseDirectInstagramEvent(entry);
+              if (event) {
+                console.log('✅ Created direct event:', event.eventType);
+                events.push(event);
+              } else {
+                console.log('❌ Failed to create direct event');
+              }
+            }
+            else {
+              console.log('⚠️ Entry has no changes array or direct event structure');
+            }
           }
+        } else {
+          console.log('⚠️ Payload has no entry array or entry is not an array');
         }
+      } else {
+        console.log('⚠️ Payload object is not "instagram":', payload.object);
       }
 
+      console.log('📊 Total events parsed:', events.length);
       return events;
     } catch (error) {
       console.error('❌ Failed to parse webhook payload:', error);
       return [];
+    }
+  }
+
+  /**
+   * Parse direct Instagram event (without changes array)
+   */
+  parseDirectInstagramEvent(entry) {
+    try {
+      console.log('🔍 Parsing direct Instagram event:', {
+        entryId: entry.id,
+        entryKeys: Object.keys(entry)
+      });
+
+      // Create a basic event structure
+      const event = {
+        id: `event_${entry.id}_${Date.now()}`,
+        eventType: 'instagram_webhook',
+        timestamp: new Date(entry.time * 1000).toISOString(),
+        accountId: entry.id,
+        content: {
+          text: 'Instagram webhook event received',
+          rawData: entry
+        },
+        userInfo: {
+          accountId: entry.id
+        },
+        metadata: {
+          source: 'direct_webhook',
+          entryData: entry
+        }
+      };
+
+      return event;
+    } catch (error) {
+      console.error('❌ Failed to parse direct Instagram event:', error);
+      return null;
     }
   }
 
