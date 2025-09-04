@@ -813,8 +813,16 @@ class MetaApiHelper {
       const response = await axios.post(
         `${this.graphUrl}/${pageId}/subscribed_apps`,
         {
-          subscribed_fields: ['messages', 'messaging_postbacks', 'messaging_optins'],
-          webhook_url: `${webhookUrl}/api/instagram/webhook`,
+          subscribed_fields: [
+            'messages', 
+            'messaging_postbacks', 
+            'messaging_optins',
+            'comments',
+            'live_comments',
+            'mentions',
+            'message_reactions'
+          ],
+          webhook_url: `${webhookUrl}/api/webhooks/instagram`,
           verify_token: verifyToken
         },
         {

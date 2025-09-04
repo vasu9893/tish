@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Comments Setup Guide</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .step { background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; }
+        .code { background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; border: 1px solid #e9ecef; }
+        .highlight { background-color: #fff3cd; padding: 2px 4px; border-radius: 3px; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 15px 0; }
+        .field-item { padding: 10px; border: 1px solid #ddd; border-radius: 4px; background-color: #f8f9fa; }
+        .field-item.missing { border-color: #dc3545; background-color: #f8d7da; }
+        .field-item.present { border-color: #28a745; background-color: #d4edda; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Live Comments Setup Guide</h1>
+        <p>This guide will help you enable live comments webhooks for your Instagram account.</p>
+
+        <div class="section error">
+            <h3>🚨 Current Issue</h3>
+            <p><strong>Problem:</strong> Live comments are not coming through webhooks</p>
+            <p><strong>Root Cause:</strong> Your webhook subscription is missing the <code>live_comments</code> field</p>
+            <p><strong>Current Fields:</strong> messages, messaging_postbacks, messaging_optins</p>
+            <p><strong>Missing Fields:</strong> comments, live_comments, mentions, message_reactions</p>
+        </div>
+
+        <div class="section info">
+            <h3>📋 Required Webhook Fields</h3>
+            <div class="field-grid">
+                <div class="field-item present">✅ messages</div>
+                <div class="field-item present">✅ messaging_postbacks</div>
+                <div class="field-item present">✅ messaging_optins</div>
+                <div class="field-item missing">❌ comments</div>
+                <div class="field-item missing">❌ live_comments</div>
+                <div class="field-item missing">❌ mentions</div>
+                <div class="field-item missing">❌ message_reactions</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🔧 Solution Options</h3>
+            
+            <div class="step">
+                <h4>Option 1: Meta Developer Console (Recommended)</h4>
+                <ol>
+                    <li>Go to <a href="https://developers.facebook.com/apps" target="_blank">Meta Developer Console</a></li>
+                    <li>Select your Instagram app</li>
+                    <li>Go to <strong>Webhooks</strong> section</li>
+                    <li>Click on your Instagram webhook</li>
+                    <li>In the <strong>Subscription Fields</strong> section, add:
+                        <div class="code">
+                            comments<br>
+                            live_comments<br>
+                            mentions<br>
+                            message_reactions
+                        </div>
+                    </li>
+                    <li>Click <strong>Save</strong></li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <h4>Option 2: API Update (Advanced)</h4>
+                <p>Use the Meta Graph API to update your subscription:</p>
+                <div class="code">
+POST https://graph.facebook.com/v23.0/{page-id}/subscribed_apps<br>
+{<br>
+&nbsp;&nbsp;"subscribed_fields": "messages,messaging_postbacks,messaging_optins,comments,live_comments,mentions,message_reactions",<br>
+&nbsp;&nbsp;"access_token": "your-page-access-token"<br>
+}
+                </div>
+            </div>
+
+            <div class="step">
+                <h4>Option 3: Re-connect Instagram Account</h4>
+                <ol>
+                    <li>Go to your dashboard: <a href="https://instantchat.in/dashboard" target="_blank">https://instantchat.in/dashboard</a></li>
+                    <li>Disconnect your Instagram account</li>
+                    <li>Re-connect your Instagram account</li>
+                    <li>The new connection will use the updated webhook fields</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="section warning">
+            <h3>⚠️ Important Notes</h3>
+            <ul>
+                <li><strong>Live Comments:</strong> Only work for Instagram Live videos, not regular posts</li>
+                <li><strong>Permissions:</strong> Your app needs <code>instagram_business_basic</code> permission</li>
+                <li><strong>Testing:</strong> You can test with regular comments first, then try live comments</li>
+                <li><strong>Webhook URL:</strong> Make sure your webhook URL is correct: <code>https://tish-production.up.railway.app/api/webhooks/instagram</code></li>
+            </ul>
+        </div>
+
+        <div class="section success">
+            <h3>✅ Verification Steps</h3>
+            <ol>
+                <li>Update your webhook subscription with the new fields</li>
+                <li>Test with a regular comment on an Instagram post</li>
+                <li>Go live on Instagram and have someone comment</li>
+                <li>Check your dashboard for the live comment webhook</li>
+                <li>Verify the webhook appears in your notifications</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h3>🧪 Test Your Setup</h3>
+            <button onclick="window.open('https://instantchat.in/dashboard', '_blank')">Open Dashboard</button>
+            <button onclick="window.open('https://developers.facebook.com/apps', '_blank')">Meta Developer Console</button>
+            <button onclick="window.open('fix-webhook-subscription.html', '_blank')">Fix Subscription Tool</button>
+        </div>
+
+        <div class="section info">
+            <h3>📞 Need Help?</h3>
+            <p>If you're still having issues:</p>
+            <ul>
+                <li>Check the webhook logs in your dashboard</li>
+                <li>Verify your Instagram account is properly connected</li>
+                <li>Make sure your app has the correct permissions</li>
+                <li>Test with regular comments first before trying live comments</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

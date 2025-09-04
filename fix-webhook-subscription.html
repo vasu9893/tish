@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Webhook Subscription - Add Live Comments</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; width: 300px; }
+        .field-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
+        .field-item { padding: 8px; border: 1px solid #ddd; border-radius: 3px; background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Webhook Subscription - Add Live Comments</h1>
+        <p>This tool helps you re-subscribe to Instagram webhooks with the correct fields including live comments.</p>
+
+        <div class="section info">
+            <h3>📋 Current Issue</h3>
+            <p>The webhook subscription is missing <code>comments</code> and <code>live_comments</code> fields. This is why live comments are not coming through.</p>
+            <p><strong>Current fields:</strong> messages, messaging_postbacks, messaging_optins</p>
+            <p><strong>Missing fields:</strong> comments, live_comments, mentions, message_reactions</p>
+        </div>
+
+        <div class="section warning">
+            <h3>⚠️ Important</h3>
+            <p>To fix this, you need to:</p>
+            <ol>
+                <li>Login to your dashboard and get a valid JWT token</li>
+                <li>Use the Meta Developer Console to update your webhook subscription</li>
+                <li>Or use the API to re-subscribe with the correct fields</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h3>🔑 Authentication</h3>
+            <input type="text" id="tokenInput" placeholder="Paste your JWT token here..." />
+            <button onclick="checkCurrentSubscription()">Check Current Subscription</button>
+            <button onclick="fixSubscription()">Fix Subscription</button>
+        </div>
+
+        <div class="section">
+            <h3>📡 Webhook Fields to Subscribe</h3>
+            <div class="field-list">
+                <div class="field-item">✅ messages</div>
+                <div class="field-item">✅ messaging_postbacks</div>
+                <div class="field-item">✅ messaging_optins</div>
+                <div class="field-item">🆕 comments</div>
+                <div class="field-item">🆕 live_comments</div>
+                <div class="field-item">🆕 mentions</div>
+                <div class="field-item">🆕 message_reactions</div>
+            </div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://tish-production.up.railway.app';
+        
+        async function checkCurrentSubscription() {
+            const token = document.getElementById('tokenInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            
+            if (!token) {
+                showResult('error', 'Please enter a JWT token');
+                return;
+            }
+
+            showResult('info', 'Checking current webhook subscription...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/webhooks/subscriptions`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    showResult('error', `❌ Failed to get subscriptions (${response.status})`, errorData);
+                    return;
+                }
+                
+                const data = await response.json();
+                showResult('success', '✅ Current Webhook Subscriptions', data);
+
+            } catch (error) {
+                showResult('error', '❌ Network Error', error.message);
+            }
+        }
+
+        async function fixSubscription() {
+            const token = document.getElementById('tokenInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            
+            if (!token) {
+                showResult('error', 'Please enter a JWT token');
+                return;
+            }
+
+            showResult('info', 'Creating new webhook subscription with all fields...');
+
+            try {
+                const subscriptionData = {
+                    instagramAccountId: 'your_instagram_account_id', // You'll need to provide this
+                    subscribedFields: [
+                        'messages',
+                        'messaging_postbacks', 
+                        'messaging_optins',
+                        'comments',
+                        'live_comments',
+                        'mentions',
+                        'message_reactions'
+                    ],
+                    webhookUrl: `${API_BASE}/api/webhooks/instagram`,
+                    verifyToken: 'instantchat_webhook_2024_secure_token'
+                };
+
+                const response = await fetch(`${API_BASE}/api/webhooks/subscriptions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(subscriptionData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    showResult('error', `❌ Failed to create subscription (${response.status})`, errorData);
+                    return;
+                }
+                
+                const data = await response.json();
+                showResult('success', '✅ Webhook Subscription Created', data);
+
+            } catch (error) {
+                showResult('error', '❌ Network Error', error.message);
+            }
+        }
+
+        function showResult(type, title, data = null) {
+            const resultsDiv = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = `section ${type}`;
+            
+            let content = `<h3>${title}</h3>`;
+            if (data) {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            section.innerHTML = content;
+            resultsDiv.appendChild(section);
+        }
+
+        // Auto-fill token from localStorage if available
+        window.onload = function() {
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                document.getElementById('tokenInput').value = savedToken;
+            }
+        };
+    </script>
+</body>
+</html>

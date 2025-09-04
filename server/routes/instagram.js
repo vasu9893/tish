@@ -1384,7 +1384,7 @@ router.get('/webhook/status', authMiddleware, async (req, res) => {
         success: true,
         status: 'inactive',
         message: 'No Instagram connection found',
-        webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`
+        webhookUrl: `${req.protocol}://${req.get('host')}/api/webhooks/instagram`
       });
     }
 
@@ -1399,7 +1399,7 @@ router.get('/webhook/status', authMiddleware, async (req, res) => {
     success: true,
       status: 'active',
       message: 'Instagram webhook is active',
-    webhookUrl: `${req.protocol}://${req.get('host')}/api/instagram/webhook`,
+    webhookUrl: `${req.protocol}://${req.get('host')}/api/webhooks/instagram`,
       stats: {
         totalEvents: eventCount,
         processedEvents: processedCount,
