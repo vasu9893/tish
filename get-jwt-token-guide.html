@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get JWT Token Guide</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .step { background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; }
+        .code { background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; border: 1px solid #e9ecef; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .highlight { background-color: #fff3cd; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Get JWT Token Guide</h1>
+        <p>This guide helps you get your JWT token to test the webhook endpoints.</p>
+
+        <div class="section info">
+            <h3>📋 Why You Need a JWT Token</h3>
+            <p>The 401 error you're seeing is <strong>normal and expected</strong>. The Instagram status and webhook events endpoints require authentication to protect your data.</p>
+            <p>You need a JWT token to access these protected endpoints.</p>
+        </div>
+
+        <div class="section">
+            <h3>🔧 How to Get Your JWT Token</h3>
+            
+            <div class="step">
+                <h4>Step 1: Login to Your Dashboard</h4>
+                <p>Go to your dashboard and login:</p>
+                <button onclick="window.open('https://instantchat.in/dashboard', '_blank')">Open Dashboard</button>
+            </div>
+
+            <div class="step">
+                <h4>Step 2: Open Browser Developer Tools</h4>
+                <p>Press <kbd>F12</kbd> or right-click and select "Inspect" to open developer tools.</p>
+            </div>
+
+            <div class="step">
+                <h4>Step 3: Go to Console Tab</h4>
+                <p>Click on the "Console" tab in the developer tools.</p>
+            </div>
+
+            <div class="step">
+                <h4>Step 4: Get Your Token</h4>
+                <p>Type this command in the console and press Enter:</p>
+                <div class="code">localStorage.getItem('token')</div>
+                <p>This will return your JWT token. Copy the entire token (it's a long string).</p>
+            </div>
+
+            <div class="step">
+                <h4>Step 5: Use the Token</h4>
+                <p>Paste the token into the test tool and run the tests again.</p>
+            </div>
+        </div>
+
+        <div class="section warning">
+            <h3>⚠️ Important Notes</h3>
+            <ul>
+                <li><strong>Keep your token secure</strong> - Don't share it with others</li>
+                <li><strong>Token expires</strong> - You may need to get a new one if it expires</li>
+                <li><strong>Dashboard access required</strong> - You must be logged into the dashboard first</li>
+            </ul>
+        </div>
+
+        <div class="section success">
+            <h3>✅ What the Token Gives You Access To</h3>
+            <ul>
+                <li>Instagram connection status</li>
+                <li>Webhook events history</li>
+                <li>Webhook subscription management</li>
+                <li>User-specific data</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>🧪 Test Your Setup</h3>
+            <p>Once you have your token, use these tools to test:</p>
+            <button onclick="window.open('test-webhook-endpoint.html', '_blank')">Test Webhook Endpoints</button>
+            <button onclick="window.open('fix-webhook-subscription.html', '_blank')">Fix Webhook Subscription</button>
+        </div>
+
+        <div class="section info">
+            <h3>🔍 Alternative: Check Without Token</h3>
+            <p>If you don't want to get a token, you can still test the basic endpoints:</p>
+            <ul>
+                <li>✅ Health endpoint (no auth required)</li>
+                <li>✅ Webhook verification (no auth required)</li>
+                <li>❌ Instagram status (auth required)</li>
+                <li>❌ Webhook events (auth required)</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

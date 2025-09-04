@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View All Webhook Events</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; width: 300px; }
+        .event-item { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background-color: #f8f9fa; }
+        .event-header { font-weight: bold; color: #007bff; margin-bottom: 10px; }
+        .event-details { font-size: 14px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 View All Webhook Events</h1>
+        <p>This tool shows all webhook events in the system to help debug why test comments aren't showing in your dashboard.</p>
+
+        <div class="section info">
+            <h3>🔍 Debugging Test Comments</h3>
+            <p>Since test comments are coming through but not showing in your dashboard, let's see where they're going.</p>
+        </div>
+
+        <div class="section">
+            <h3>🔑 Authentication</h3>
+            <input type="text" id="tokenInput" placeholder="Paste your JWT token here..." style="width: 100%; margin-bottom: 10px;" />
+            <button onclick="loadAllEvents()">Load All Webhook Events</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://tish-production.up.railway.app';
+        
+        async function loadAllEvents() {
+            const token = document.getElementById('tokenInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            
+            if (!token) {
+                showResult('error', 'Please enter a JWT token to load events');
+                return;
+            }
+
+            resultsDiv.innerHTML = '';
+            showResult('info', '🔍 Loading all webhook events...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/webhooks/events`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const events = data.data?.events || [];
+                    const total = data.data?.total || 0;
+                    
+                    showResult('success', `✅ Found ${total} webhook events`, {
+                        totalEvents: total,
+                        eventsReturned: events.length,
+                        hasEvents: events.length > 0
+                    });
+
+                    if (events.length > 0) {
+                        showResult('info', '📋 Event Details:');
+                        events.forEach((event, index) => {
+                            displayEvent(event, index + 1);
+                        });
+                    } else {
+                        showResult('warning', '⚠️ No events found in the response');
+                    }
+                } else {
+                    showResult('error', `❌ Failed to load events (${response.status})`, data);
+                }
+            } catch (error) {
+                showResult('error', '❌ Failed to load events', error.message);
+            }
+        }
+
+        function displayEvent(event, index) {
+            const resultsDiv = document.getElementById('results');
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            
+            const eventType = event.eventType || 'unknown';
+            const timestamp = event.timestamp ? new Date(event.timestamp).toLocaleString() : 'unknown';
+            const userId = event.userId || 'no user';
+            const senderId = event.senderId || 'unknown sender';
+            const content = event.content?.text || event.message || 'no content';
+            
+            eventDiv.innerHTML = `
+                <div class="event-header">Event #${index}: ${eventType.toUpperCase()}</div>
+                <div class="event-details">
+                    <strong>Time:</strong> ${timestamp}<br>
+                    <strong>User ID:</strong> ${userId}<br>
+                    <strong>Sender ID:</strong> ${senderId}<br>
+                    <strong>Content:</strong> ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}<br>
+                    <strong>Event ID:</strong> ${event.eventId || 'no ID'}<br>
+                    <strong>Status:</strong> ${event.processedStatus || 'unknown'}
+                </div>
+            `;
+            
+            resultsDiv.appendChild(eventDiv);
+        }
+
+        function showResult(type, title, data = null) {
+            const resultsDiv = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = `section ${type}`;
+            
+            let content = `<h3>${title}</h3>`;
+            if (data) {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            section.innerHTML = content;
+            resultsDiv.appendChild(section);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Auto-fill token from localStorage if available
+        window.onload = function() {
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                document.getElementById('tokenInput').value = savedToken;
+            }
+        };
+    </script>
+</body>
+</html>

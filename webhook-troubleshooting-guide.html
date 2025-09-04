@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Troubleshooting Guide</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .step { background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; }
+        .code { background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; border: 1px solid #e9ecef; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .checklist { list-style: none; padding: 0; }
+        .checklist li { padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .checklist li.pass { background-color: #d4edda; border-left: 4px solid #28a745; }
+        .checklist li.fail { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .checklist li.warning { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Webhook Troubleshooting Guide</h1>
+        <p>This guide helps you fix webhook subscription issues when comments aren't triggering webhooks.</p>
+
+        <div class="section error">
+            <h3>🚨 Your Issue</h3>
+            <p><strong>Problem:</strong> When someone comments on your Instagram posts, no webhook is being sent</p>
+            <p><strong>Expected:</strong> You should receive webhook events in your dashboard when people comment</p>
+        </div>
+
+        <div class="section">
+            <h3>🔍 Common Causes & Solutions</h3>
+            
+            <div class="step">
+                <h4>1. Instagram Account Not Connected</h4>
+                <p><strong>Symptom:</strong> No webhook subscriptions found</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Go to your dashboard: <a href="https://instantchat.in/dashboard" target="_blank">https://instantchat.in/dashboard</a></li>
+                    <li>Connect your Instagram account</li>
+                    <li>Complete the OAuth flow</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <h4>2. Wrong Webhook URL</h4>
+                <p><strong>Symptom:</strong> Webhooks are being sent to wrong endpoint</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Go to <a href="https://developers.facebook.com/apps" target="_blank">Meta Developer Console</a></li>
+                    <li>Select your Instagram app</li>
+                    <li>Go to Webhooks section</li>
+                    <li>Update webhook URL to: <code>https://tish-production.up.railway.app/api/webhooks/instagram</code></li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <h4>3. Missing Webhook Fields</h4>
+                <p><strong>Symptom:</strong> Webhooks work for messages but not comments</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>In Meta Developer Console, go to Webhooks</li>
+                    <li>Add these subscription fields:
+                        <div class="code">
+                            comments<br>
+                            live_comments<br>
+                            mentions<br>
+                            message_reactions
+                        </div>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <h4>4. App Permissions</h4>
+                <p><strong>Symptom:</strong> Webhook subscription fails</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Ensure your app has <code>instagram_business_basic</code> permission</li>
+                    <li>Check that your Instagram account is a Business/Creator account</li>
+                    <li>Verify the account is connected to a Facebook Page</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <h4>5. Webhook Verification Token</h4>
+                <p><strong>Symptom:</strong> Webhook verification fails</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>In Meta Developer Console, set verify token to: <code>instantchat_webhook_2024_secure_token</code></li>
+                    <li>Make sure the token matches exactly</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>✅ Quick Checklist</h3>
+            <ul class="checklist">
+                <li class="warning">🔗 Instagram account connected to dashboard</li>
+                <li class="warning">📱 Instagram account is Business/Creator type</li>
+                <li class="warning">🔗 Instagram account connected to Facebook Page</li>
+                <li class="warning">🌐 Webhook URL: <code>https://tish-production.up.railway.app/api/webhooks/instagram</code></li>
+                <li class="warning">🔑 Verify token: <code>instantchat_webhook_2024_secure_token</code></li>
+                <li class="warning">📋 Subscription fields include: <code>comments</code></li>
+                <li class="warning">🔐 App has <code>instagram_business_basic</code> permission</li>
+                <li class="warning">✅ Webhook subscription is active</li>
+            </ul>
+        </div>
+
+        <div class="section info">
+            <h3>🧪 Testing Steps</h3>
+            <ol>
+                <li><strong>Test Webhook Endpoint:</strong> Use the diagnostic tool to verify webhook endpoint is accessible</li>
+                <li><strong>Check Instagram Connection:</strong> Verify your Instagram account is properly connected</li>
+                <li><strong>Test Comment:</strong> Have someone comment on your Instagram post</li>
+                <li><strong>Check Dashboard:</strong> Look for the webhook event in your dashboard</li>
+                <li><strong>Check Logs:</strong> Look at server logs for any webhook processing errors</li>
+            </ol>
+        </div>
+
+        <div class="section success">
+            <h3>🚀 Quick Fix (Recommended)</h3>
+            <p>If you're unsure about the configuration, try this quick fix:</p>
+            <ol>
+                <li>Go to your dashboard: <a href="https://instantchat.in/dashboard" target="_blank">https://instantchat.in/dashboard</a></li>
+                <li>Disconnect your Instagram account</li>
+                <li>Re-connect your Instagram account</li>
+                <li>This will create a new webhook subscription with the correct settings</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h3>🔧 Diagnostic Tools</h3>
+            <button onclick="window.open('webhook-subscription-diagnostic.html', '_blank')">Run Full Diagnostic</button>
+            <button onclick="window.open('test-webhook-endpoint.html', '_blank')">Test Webhook Endpoint</button>
+            <button onclick="window.open('https://instantchat.in/dashboard', '_blank')">Open Dashboard</button>
+            <button onclick="window.open('https://developers.facebook.com/apps', '_blank')">Meta Developer Console</button>
+        </div>
+
+        <div class="section warning">
+            <h3>⚠️ Important Notes</h3>
+            <ul>
+                <li><strong>Business Account Required:</strong> Instagram webhooks only work with Business/Creator accounts</li>
+                <li><strong>Facebook Page Required:</strong> Your Instagram account must be connected to a Facebook Page</li>
+                <li><strong>App Review:</strong> Some permissions may require app review by Meta</li>
+                <li><strong>Testing:</strong> Use a test Instagram account to avoid affecting your main account</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

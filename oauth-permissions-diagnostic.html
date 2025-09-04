@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Permissions Diagnostic</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .permission-item { padding: 10px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #007bff; background-color: #f8f9fa; }
+        .permission-item.required { border-left-color: #dc3545; background-color: #f8d7da; }
+        .permission-item.optional { border-left-color: #ffc107; background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 OAuth Permissions Diagnostic</h1>
+        <p>This tool helps diagnose why Instagram is not asking for the necessary permissions during OAuth.</p>
+
+        <div class="section error">
+            <h3>🚨 Current Issue</h3>
+            <p><strong>Problem:</strong> Instagram OAuth is not asking for any permissions</p>
+            <p><strong>Expected:</strong> Instagram should ask for permissions to access comments, messages, etc.</p>
+        </div>
+
+        <div class="section">
+            <h3>📋 Required Instagram Permissions for Webhooks</h3>
+            
+            <div class="permission-item required">
+                <strong>instagram_business_basic</strong><br>
+                <small>Required for basic Instagram Business API access</small>
+            </div>
+            
+            <div class="permission-item required">
+                <strong>instagram_business_manage_messages</strong><br>
+                <small>Required to receive message webhooks</small>
+            </div>
+            
+            <div class="permission-item required">
+                <strong>instagram_business_manage_comments</strong><br>
+                <small>Required to receive comment webhooks (this is what you need!)</small>
+            </div>
+            
+            <div class="permission-item optional">
+                <strong>instagram_business_content_publish</strong><br>
+                <small>Optional - for publishing content</small>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🔧 OAuth Configuration Check</h3>
+            <button onclick="checkOAuthConfig()">Check OAuth Configuration</button>
+            <button onclick="testOAuthFlow()">Test OAuth Flow</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div class="section warning">
+            <h3>⚠️ Common Issues</h3>
+            <ul>
+                <li><strong>App Not Approved:</strong> Some permissions require Meta app review</li>
+                <li><strong>Wrong App Type:</strong> Make sure you're using Instagram Business API, not Basic Display API</li>
+                <li><strong>Account Type:</strong> Instagram account must be Business or Creator type</li>
+                <li><strong>Facebook Page:</strong> Instagram account must be connected to a Facebook Page</li>
+                <li><strong>App Configuration:</strong> Check Meta Developer Console app settings</li>
+            </ul>
+        </div>
+
+        <div class="section info">
+            <h3>🔍 Debugging Steps</h3>
+            <ol>
+                <li><strong>Check App Type:</strong> Verify you're using Instagram Business API, not Basic Display API</li>
+                <li><strong>Check Account Type:</strong> Ensure your Instagram account is Business/Creator type</li>
+                <li><strong>Check Facebook Page:</strong> Verify Instagram is connected to a Facebook Page</li>
+                <li><strong>Check App Review:</strong> Some permissions may require Meta app review</li>
+                <li><strong>Check OAuth URL:</strong> Verify the OAuth URL includes all required scopes</li>
+            </ol>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://tish-production.up.railway.app';
+        
+        async function checkOAuthConfig() {
+            showResult('info', '🔍 Checking OAuth configuration...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/instagram/auth/instagram`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('success', '✅ OAuth Configuration', {
+                        authUrl: data.authUrl,
+                        scopes: data.scopes,
+                        redirectUri: data.redirectUri,
+                        oauthType: data.oauthType
+                    });
+                    
+                    // Check if all required scopes are present
+                    const requiredScopes = [
+                        'instagram_business_basic',
+                        'instagram_business_manage_messages',
+                        'instagram_business_manage_comments'
+                    ];
+                    
+                    const missingScopes = requiredScopes.filter(scope => !data.scopes.includes(scope));
+                    
+                    if (missingScopes.length === 0) {
+                        showResult('success', '✅ All Required Scopes Present', {
+                            message: 'OAuth configuration includes all required permissions'
+                        });
+                    } else {
+                        showResult('error', '❌ Missing Required Scopes', {
+                            missingScopes: missingScopes,
+                            message: 'OAuth configuration is missing required permissions'
+                        });
+                    }
+                } else {
+                    showResult('error', '❌ OAuth Configuration Check Failed', data);
+                }
+            } catch (error) {
+                showResult('error', '❌ OAuth Configuration Check Failed', error.message);
+            }
+        }
+
+        async function testOAuthFlow() {
+            showResult('info', '🔍 Testing OAuth flow...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/instagram/auth/instagram`);
+                const data = await response.json();
+                
+                if (response.ok && data.authUrl) {
+                    showResult('success', '✅ OAuth Flow Test', {
+                        message: 'OAuth flow is working. Click the link below to test:',
+                        authUrl: data.authUrl,
+                        instruction: 'Open this URL in a new tab to test the OAuth flow'
+                    });
+                    
+                    // Create a clickable link
+                    const resultsDiv = document.getElementById('results');
+                    const linkDiv = document.createElement('div');
+                    linkDiv.className = 'section info';
+                    linkDiv.innerHTML = `
+                        <h3>🔗 Test OAuth Flow</h3>
+                        <p>Click the link below to test the OAuth flow and see if Instagram asks for permissions:</p>
+                        <a href="${data.authUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">Test Instagram OAuth Flow</a>
+                    `;
+                    resultsDiv.appendChild(linkDiv);
+                } else {
+                    showResult('error', '❌ OAuth Flow Test Failed', data);
+                }
+            } catch (error) {
+                showResult('error', '❌ OAuth Flow Test Failed', error.message);
+            }
+        }
+
+        function showResult(type, title, data = null) {
+            const resultsDiv = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = `section ${type}`;
+            
+            let content = `<h3>${title}</h3>`;
+            if (data) {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            section.innerHTML = content;
+            resultsDiv.appendChild(section);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

@@ -90,16 +90,65 @@
             showResult('info', '🔍 Testing Instagram status endpoint...');
             
             try {
-                const response = await fetch(`${API_BASE}/api/instagram/status`);
+                const token = document.getElementById('tokenInput').value.trim();
+                const headers = {};
+                
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(`${API_BASE}/api/instagram/status`, { headers });
                 const data = await response.json();
                 
                 if (response.ok) {
                     showResult('success', '✅ Instagram Status Endpoint Working', data);
                 } else {
-                    showResult('error', `❌ Instagram Status Error (${response.status})`, data);
+                    if (response.status === 401) {
+                        showResult('error', `❌ Instagram Status Error (${response.status}) - Authentication Required`, {
+                            message: 'This endpoint requires a valid JWT token. Please login to your dashboard and copy the token from localStorage.',
+                            suggestion: 'Go to https://instantchat.in/dashboard, open browser console (F12), and run: localStorage.getItem("token")'
+                        });
+                    } else {
+                        showResult('error', `❌ Instagram Status Error (${response.status})`, data);
+                    }
                 }
             } catch (error) {
                 showResult('error', '❌ Instagram Status Failed', error.message);
+            }
+        }
+
+        async function testWebhookEvents() {
+            showResult('info', '🔍 Testing webhook events endpoint...');
+            
+            try {
+                const token = document.getElementById('tokenInput').value.trim();
+                const headers = {};
+                
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(`${API_BASE}/api/webhooks/events`, { headers });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('success', '✅ Webhook Events Endpoint Working', {
+                        totalEvents: data.data?.total || 0,
+                        events: data.data?.events?.length || 0,
+                        hasEvents: (data.data?.events?.length || 0) > 0
+                    });
+                } else {
+                    if (response.status === 401) {
+                        showResult('error', `❌ Webhook Events Error (${response.status}) - Authentication Required`, {
+                            message: 'This endpoint requires a valid JWT token.',
+                            suggestion: 'Please provide a JWT token to test this endpoint.'
+                        });
+                    } else {
+                        showResult('error', `❌ Webhook Events Error (${response.status})`, data);
+                    }
+                }
+            } catch (error) {
+                showResult('error', '❌ Webhook Events Failed', error.message);
             }
         }
 
@@ -123,6 +172,12 @@
 
         // Auto-test on load
         window.onload = function() {
+            // Auto-fill token from localStorage if available
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                document.getElementById('tokenInput').value = savedToken;
+            }
+            
             testHealthEndpoint();
         };
     </script>
