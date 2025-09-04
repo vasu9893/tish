@@ -50,7 +50,39 @@ const webhookEventSchema = new mongoose.Schema({
   },
   processingError: String,
   flowResponse: String,
-  metadata: mongoose.Schema.Types.Mixed
+  metadata: mongoose.Schema.Types.Mixed,
+  // Additional fields for webhook processing
+  eventId: {
+    type: String,
+    unique: true,
+    required: true
+  },
+  accountId: {
+    type: String,
+    required: true
+  },
+  senderId: String,
+  recipientId: String,
+  payload: mongoose.Schema.Types.Mixed,
+  webhookMetadata: mongoose.Schema.Types.Mixed,
+  deduplicationKey: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  processedStatus: {
+    type: String,
+    enum: ['pending', 'processing', 'completed', 'failed'],
+    default: 'pending'
+  },
+  processingAttempts: {
+    type: Number,
+    default: 0
+  },
+  isRead: {
+    type: Boolean,
+    default: false
+  }
 }, {
   timestamps: true
 });
@@ -60,6 +92,10 @@ webhookEventSchema.index({ userId: 1, timestamp: -1 });
 webhookEventSchema.index({ eventType: 1, timestamp: -1 });
 webhookEventSchema.index({ pageId: 1, timestamp: -1 });
 webhookEventSchema.index({ isProcessed: 1 });
+webhookEventSchema.index({ eventId: 1 });
+webhookEventSchema.index({ accountId: 1, timestamp: -1 });
+webhookEventSchema.index({ deduplicationKey: 1 });
+webhookEventSchema.index({ processedStatus: 1 });
 
 // Virtual for formatted timestamp
 webhookEventSchema.virtual('formattedTimestamp').get(function() {
@@ -117,6 +153,26 @@ webhookEventSchema.statics.getEventsInDateRange = function(userId, startDate, en
       $lte: endDate
     }
   }).sort({ timestamp: -1 });
+};
+
+// Static method to check if event is duplicate
+webhookEventSchema.statics.isDuplicate = function(deduplicationKey) {
+  return this.findOne({ deduplicationKey }).then(event => !!event);
+};
+
+// Method to mark as failed
+webhookEventSchema.methods.markAsFailed = function(error) {
+  this.isProcessed = false;
+  this.processingError = error;
+  this.processingAttempts = (this.processingAttempts || 0) + 1;
+  return this.save();
+};
+
+// Method to retry processing
+webhookEventSchema.methods.retry = function() {
+  this.processedStatus = 'pending';
+  this.processingError = null;
+  return this.save();
 };
 
 const WebhookEvent = mongoose.model('WebhookEvent', webhookEventSchema);
