@@ -32,9 +32,9 @@ const WebhookMonitoringDashboard = () => {
       
       // Load all monitoring data in parallel
       const [dashboardResponse, statusResponse, errorsResponse] = await Promise.all([
-        api.get('/webhooks/monitoring/dashboard'),
-        api.get('/webhooks/monitoring/status'),
-        api.get('/webhooks/monitoring/errors')
+        api.get('/api/webhooks/monitoring/dashboard'),
+        api.get('/api/webhooks/monitoring/status'),
+        api.get('/api/webhooks/monitoring/errors')
       ]);
 
       if (dashboardResponse.success) {
@@ -63,7 +63,7 @@ const WebhookMonitoringDashboard = () => {
   const performManualHealthCheck = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/webhooks/monitoring/health-check');
+      const response = await api.post('/api/webhooks/monitoring/health-check');
       
       if (response.success) {
         toast({

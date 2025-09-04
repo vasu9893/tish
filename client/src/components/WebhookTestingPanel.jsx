@@ -29,7 +29,7 @@ const WebhookTestingPanel = () => {
   const loadTestSuites = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/webhooks/testing/suites');
+      const response = await api.get('/api/webhooks/testing/suites');
       if (response.success) {
         setTestSuites(response.data.suites || []);
         setTestResults(response.data.results || []);
@@ -58,7 +58,7 @@ const WebhookTestingPanel = () => {
       }
 
       setLoading(true);
-      const response = await api.post('/webhooks/testing/create-suite', formData);
+      const response = await api.post('/api/webhooks/testing/create-suite', formData);
       
       if (response.success) {
         toast({
@@ -85,7 +85,7 @@ const WebhookTestingPanel = () => {
   const executeTestSuite = async (suiteId) => {
     try {
       setLoading(true);
-      const response = await api.post(`/webhooks/testing/execute-suite/${suiteId}`);
+      const response = await api.post(`/api/webhooks/testing/execute-suite/${suiteId}`);
       
       if (response.success) {
         toast({
@@ -111,7 +111,7 @@ const WebhookTestingPanel = () => {
   const cleanupTestData = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/webhooks/testing/cleanup');
+      const response = await api.post('/api/webhooks/testing/cleanup');
       
       if (response.success) {
         toast({

@@ -94,7 +94,7 @@ const useNotificationStore = create(
     loadNotifications: async () => {
       try {
         set({ isLoading: true });
-        const response = await api.get('/webhooks/events');
+        const response = await api.get('/api/webhooks/events');
         
         if (response.data?.success && response.data.data?.events) {
           const events = response.data.data.events.map(event => ({

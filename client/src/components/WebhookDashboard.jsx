@@ -45,9 +45,9 @@ const WebhookDashboard = () => {
     setLoading(true);
     try {
       const [subsRes, eventsRes, statsRes] = await Promise.all([
-        api.get('/webhooks/subscriptions'),
-        api.get('/webhooks/events'),
-        api.get('/webhooks/stats')
+        api.get('/api/webhooks/subscriptions'),
+        api.get('/api/webhooks/events'),
+        api.get('/api/webhooks/stats')
       ]);
 
       if (subsRes.data?.success) setSubscriptions(subsRes.data.data);
@@ -63,7 +63,7 @@ const WebhookDashboard = () => {
 
   const handleCreateSubscription = async (subscriptionData) => {
     try {
-      const response = await api.post('/webhooks/subscriptions', subscriptionData);
+      const response = await api.post('/api/webhooks/subscriptions', subscriptionData);
       if (response.data?.success) {
         toast.success('Webhook subscription created successfully');
         loadData();
@@ -76,7 +76,7 @@ const WebhookDashboard = () => {
 
   const handleToggleSubscription = async (subscriptionId, enabled) => {
     try {
-      const response = await api.put(`/webhooks/subscriptions/${subscriptionId}`, {
+      const response = await api.put(`/api/webhooks/subscriptions/${subscriptionId}`, {
         status: enabled ? 'active' : 'inactive'
       });
       if (response.data?.success) {
@@ -93,7 +93,7 @@ const WebhookDashboard = () => {
     if (!confirm('Are you sure you want to delete this subscription?')) return;
     
     try {
-      const response = await api.delete(`/webhooks/subscriptions/${subscriptionId}`);
+      const response = await api.delete(`/api/webhooks/subscriptions/${subscriptionId}`);
       if (response.data?.success) {
         toast.success('Subscription deleted successfully');
         loadData();
@@ -106,7 +106,7 @@ const WebhookDashboard = () => {
 
   const handleRetryEvent = async (eventId) => {
     try {
-      const response = await api.post(`/webhooks/events/${eventId}/retry`);
+      const response = await api.post(`/api/webhooks/events/${eventId}/retry`);
       if (response.data?.success) {
         toast.success('Event queued for retry');
         loadData();
