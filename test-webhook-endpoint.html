@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Webhook Endpoint</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Webhook Endpoint</h1>
+        <p>This tool tests if the webhook endpoint is accessible and working correctly.</p>
+
+        <div class="section info">
+            <h3>📋 Current Issue</h3>
+            <p><strong>Problem:</strong> Original post comments are not coming through webhooks</p>
+            <p><strong>Possible Causes:</strong></p>
+            <ul>
+                <li>Webhook subscription URL mismatch</li>
+                <li>Server is down or unreachable</li>
+                <li>Webhook processing errors</li>
+                <li>Instagram account not properly connected</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>🔧 Test Webhook Endpoints</h3>
+            <input type="text" id="tokenInput" placeholder="JWT Token (optional for protected endpoints)" style="width: 100%; margin-bottom: 10px;" />
+            <button onclick="testHealthEndpoint()">Test Health Endpoint</button>
+            <button onclick="testWebhookEndpoint()">Test Webhook Endpoint</button>
+            <button onclick="testInstagramStatus()">Test Instagram Status</button>
+            <button onclick="testWebhookEvents()">Test Webhook Events</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://tish-production.up.railway.app';
+        
+        async function testHealthEndpoint() {
+            showResult('info', '🔍 Testing health endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/webhooks/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('success', '✅ Health Endpoint Working', data);
+                } else {
+                    showResult('error', `❌ Health Endpoint Error (${response.status})`, data);
+                }
+            } catch (error) {
+                showResult('error', '❌ Health Endpoint Failed', error.message);
+            }
+        }
+
+        async function testWebhookEndpoint() {
+            showResult('info', '🔍 Testing webhook endpoint...');
+            
+            try {
+                // Test webhook verification (GET request)
+                const verifyUrl = `${API_BASE}/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=instantchat_webhook_2024_secure_token&hub.challenge=test123`;
+                const response = await fetch(verifyUrl);
+                const text = await response.text();
+                
+                if (response.ok && text === 'test123') {
+                    showResult('success', '✅ Webhook Verification Working', { challenge: text });
+                } else {
+                    showResult('error', `❌ Webhook Verification Failed (${response.status})`, { response: text });
+                }
+            } catch (error) {
+                showResult('error', '❌ Webhook Endpoint Failed', error.message);
+            }
+        }
+
+        async function testInstagramStatus() {
+            showResult('info', '🔍 Testing Instagram status endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/instagram/status`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('success', '✅ Instagram Status Endpoint Working', data);
+                } else {
+                    showResult('error', `❌ Instagram Status Error (${response.status})`, data);
+                }
+            } catch (error) {
+                showResult('error', '❌ Instagram Status Failed', error.message);
+            }
+        }
+
+        function showResult(type, title, data = null) {
+            const resultsDiv = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = `section ${type}`;
+            
+            let content = `<h3>${title}</h3>`;
+            if (data) {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            section.innerHTML = content;
+            resultsDiv.appendChild(section);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Auto-test on load
+        window.onload = function() {
+            testHealthEndpoint();
+        };
+    </script>
+</body>
+</html>
