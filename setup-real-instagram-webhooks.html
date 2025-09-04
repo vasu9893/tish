@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Real Instagram Webhooks - InstantChat</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .header h1 {
+            color: #333;
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            color: #666;
+            margin: 10px 0 0 0;
+            font-size: 1.1em;
+        }
+        .step {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .step h3 {
+            color: #007bff;
+            margin: 0 0 15px 0;
+            font-size: 1.3em;
+        }
+        .step p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        .code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+        .log {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        .requirements {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            color: #1565c0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .requirements h4 {
+            margin: 0 0 15px 0;
+            color: #1565c0;
+        }
+        .requirements ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .requirements li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 Setup Real Instagram Webhooks</h1>
+            <p>Configure your InstantChat system to receive real-time Instagram webhook events</p>
+        </div>
+
+        <div class="requirements">
+            <h4>📋 Prerequisites</h4>
+            <ul>
+                <li>✅ Meta Developer Account with Instagram Business/Creator account</li>
+                <li>✅ Instagram App with Instagram Graph API enabled</li>
+                <li>✅ Public server URL (Railway/Heroku/AWS)</li>
+                <li>✅ Instagram account connected to InstantChat</li>
+                <li>✅ App approved for Instagram Graph API (or in Development mode)</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3>🔍 Step 1: Check Current Status</h3>
+            <p>First, let's check your current Instagram connection and webhook status.</p>
+            <button class="button" onclick="checkInstagramStatus()">Check Instagram Status</button>
+            <div id="instagramStatus" class="status pending">Click "Check Instagram Status" to see current connection</div>
+        </div>
+
+        <div class="step">
+            <h3>⚙️ Step 2: Configure Webhook Settings</h3>
+            <p>Configure the webhook fields you want to receive notifications for:</p>
+            
+            <div class="form-group">
+                <label>Webhook URL (Your server endpoint):</label>
+                <input type="text" id="webhookUrl" value="https://tish-production.up.railway.app/api/webhooks/instagram" readonly>
+            </div>
+
+            <div class="form-group">
+                <label>Verify Token:</label>
+                <input type="text" id="verifyToken" value="instantchat_webhook_2024_secure_token" readonly>
+            </div>
+
+            <div class="form-group">
+                <label>Select Webhook Fields:</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="comments" checked>
+                        <label for="comments">Comments</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="mentions" checked>
+                        <label for="mentions">Mentions</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="live_comments" checked>
+                        <label for="live_comments">Live Comments</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="message_reactions" checked>
+                        <label for="message_reactions">Message Reactions</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="messages" checked>
+                        <label for="messages">Messages</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>🔗 Step 3: Subscribe to Instagram Webhooks</h3>
+            <p>Subscribe your Instagram account to receive webhook events from Meta.</p>
+            <button class="button" onclick="subscribeToWebhooks()">Subscribe to Webhooks</button>
+            <div id="subscriptionStatus" class="status pending">Click "Subscribe to Webhooks" to start</div>
+        </div>
+
+        <div class="step">
+            <h3>🧪 Step 4: Test Webhook Endpoints</h3>
+            <p>Test that your webhook endpoints are working correctly.</p>
+            <button class="button" onclick="testWebhookVerification()">Test Verification</button>
+            <button class="button" onclick="testWebhookEvent()">Test Event Processing</button>
+            <div id="testStatus" class="status pending">Click test buttons to verify webhook functionality</div>
+        </div>
+
+        <div class="step">
+            <h3>📊 Step 5: Monitor Webhook Events</h3>
+            <p>Monitor incoming webhook events in real-time.</p>
+            <button class="button" onclick="startMonitoring()">Start Monitoring</button>
+            <button class="button" onclick="stopMonitoring()">Stop Monitoring</button>
+            <div id="monitoringStatus" class="status disconnected">Monitoring stopped</div>
+        </div>
+
+        <div class="step">
+            <h3>📝 Step 6: Meta Developer Console Setup</h3>
+            <p>Configure your webhook in the Meta Developer Console:</p>
+            <div class="code">
+1. Go to: https://developers.facebook.com/apps/YOUR_APP_ID/webhooks/
+2. Click "Add Webhook"
+3. Set Callback URL: <span id="callbackUrl">https://tish-production.up.railway.app/api/webhooks/instagram</span>
+4. Set Verify Token: <span id="verifyTokenDisplay">instantchat_webhook_2024_secure_token</span>
+5. Subscribe to these fields:
+   - comments
+   - mentions
+   - live_comments
+   - message_reactions
+   - messages
+6. Click "Verify and Save"
+            </div>
+            <button class="button" onclick="openMetaConsole()">Open Meta Developer Console</button>
+        </div>
+
+        <div class="step">
+            <h3>📋 Activity Log</h3>
+            <div id="activityLog" class="log">Ready to setup Instagram webhooks...\n</div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://tish-production.up.railway.app';
+        let monitoringInterval = null;
+
+        function log(message) {
+            const logElement = document.getElementById('activityLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${status}`;
+            element.textContent = message;
+        }
+
+        async function checkInstagramStatus() {
+            log('🔍 Checking Instagram connection status...');
+            updateStatus('instagramStatus', 'pending', 'Checking...');
+
+            try {
+                const token = localStorage.getItem('token') || 'dummy_jwt_token_1756470432022';
+                const response = await fetch(`${BACKEND_URL}/api/instagram/status`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.connected) {
+                    updateStatus('instagramStatus', 'connected', `✅ Connected as @${data.username} (${data.accountType})`);
+                    log(`✅ Instagram connected: @${data.username} (${data.accountType})`);
+                    log(`📊 Account ID: ${data.instagramUserId}`);
+                    log(`🔑 Permissions: ${data.permissions?.join(', ') || 'None'}`);
+                } else {
+                    updateStatus('instagramStatus', 'disconnected', '❌ Instagram not connected');
+                    log('❌ Instagram not connected. Please connect your Instagram account first.');
+                }
+            } catch (error) {
+                updateStatus('instagramStatus', 'disconnected', '❌ Error checking status');
+                log(`❌ Error checking Instagram status: ${error.message}`);
+            }
+        }
+
+        async function subscribeToWebhooks() {
+            log('🔗 Subscribing to Instagram webhooks...');
+            updateStatus('subscriptionStatus', 'pending', 'Subscribing...');
+
+            try {
+                const token = localStorage.getItem('token') || 'dummy_jwt_token_1756470432022';
+                const selectedFields = [];
+                
+                if (document.getElementById('comments').checked) selectedFields.push('comments');
+                if (document.getElementById('mentions').checked) selectedFields.push('mentions');
+                if (document.getElementById('live_comments').checked) selectedFields.push('live_comments');
+                if (document.getElementById('message_reactions').checked) selectedFields.push('message_reactions');
+                if (document.getElementById('messages').checked) selectedFields.push('messages');
+
+                const response = await fetch(`${BACKEND_URL}/api/webhooks/subscriptions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        subscribedFields: selectedFields,
+                        webhookConfig: {
+                            url: document.getElementById('webhookUrl').value,
+                            verifyToken: document.getElementById('verifyToken').value,
+                            secret: 'your_webhook_secret_here'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus('subscriptionStatus', 'connected', '✅ Webhook subscription successful');
+                    log('✅ Successfully subscribed to Instagram webhooks');
+                    log(`📋 Subscribed fields: ${selectedFields.join(', ')}`);
+                    log(`🔗 Webhook URL: ${document.getElementById('webhookUrl').value}`);
+                } else {
+                    updateStatus('subscriptionStatus', 'disconnected', '❌ Subscription failed');
+                    log(`❌ Webhook subscription failed: ${data.error}`);
+                }
+            } catch (error) {
+                updateStatus('subscriptionStatus', 'disconnected', '❌ Error subscribing');
+                log(`❌ Error subscribing to webhooks: ${error.message}`);
+            }
+        }
+
+        async function testWebhookVerification() {
+            log('🧪 Testing webhook verification...');
+            updateStatus('testStatus', 'pending', 'Testing verification...');
+
+            try {
+                const verifyToken = document.getElementById('verifyToken').value;
+                const response = await fetch(`${BACKEND_URL}/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=${verifyToken}&hub.challenge=test_challenge_123`);
+
+                if (response.ok) {
+                    const challenge = await response.text();
+                    if (challenge === 'test_challenge_123') {
+                        updateStatus('testStatus', 'connected', '✅ Webhook verification working');
+                        log('✅ Webhook verification test passed');
+                    } else {
+                        updateStatus('testStatus', 'disconnected', '❌ Verification failed');
+                        log('❌ Webhook verification test failed - wrong challenge response');
+                    }
+                } else {
+                    updateStatus('testStatus', 'disconnected', '❌ Verification endpoint error');
+                    log(`❌ Webhook verification test failed: ${response.status}`);
+                }
+            } catch (error) {
+                updateStatus('testStatus', 'disconnected', '❌ Error testing verification');
+                log(`❌ Error testing webhook verification: ${error.message}`);
+            }
+        }
+
+        async function testWebhookEvent() {
+            log('🧪 Testing webhook event processing...');
+            updateStatus('testStatus', 'pending', 'Testing event processing...');
+
+            try {
+                const testEvent = {
+                    object: 'instagram',
+                    entry: [{
+                        id: 'test_page_id',
+                        time: Math.floor(Date.now() / 1000),
+                        changes: [{
+                            field: 'comments',
+                            value: {
+                                item: {
+                                    id: 'test_comment_id',
+                                    text: 'This is a test comment from webhook setup',
+                                    from: {
+                                        id: 'test_user_id',
+                                        username: 'test_user'
+                                    }
+                                }
+                            }
+                        }]
+                    }]
+                };
+
+                const response = await fetch(`${BACKEND_URL}/api/webhooks/instagram`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testEvent)
+                });
+
+                if (response.ok) {
+                    updateStatus('testStatus', 'connected', '✅ Event processing working');
+                    log('✅ Webhook event processing test passed');
+                } else {
+                    updateStatus('testStatus', 'disconnected', '❌ Event processing failed');
+                    log(`❌ Webhook event processing test failed: ${response.status}`);
+                }
+            } catch (error) {
+                updateStatus('testStatus', 'disconnected', '❌ Error testing events');
+                log(`❌ Error testing webhook event processing: ${error.message}`);
+            }
+        }
+
+        function startMonitoring() {
+            log('📊 Starting webhook event monitoring...');
+            updateStatus('monitoringStatus', 'connected', 'Monitoring active');
+            
+            monitoringInterval = setInterval(async () => {
+                try {
+                    const token = localStorage.getItem('token') || 'dummy_jwt_token_1756470432022';
+                    const response = await fetch(`${BACKEND_URL}/api/webhooks/events?limit=5`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success && data.events.length > 0) {
+                        log(`📨 Received ${data.events.length} new webhook events`);
+                        data.events.forEach(event => {
+                            log(`  - ${event.eventType}: ${event.content?.text || 'No content'}`);
+                        });
+                    }
+                } catch (error) {
+                    log(`❌ Error monitoring webhooks: ${error.message}`);
+                }
+            }, 5000);
+        }
+
+        function stopMonitoring() {
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+            }
+            log('📊 Stopped webhook event monitoring');
+            updateStatus('monitoringStatus', 'disconnected', 'Monitoring stopped');
+        }
+
+        function openMetaConsole() {
+            const appId = '1192283755959700'; // Your app ID
+            const url = `https://developers.facebook.com/apps/${appId}/webhooks/`;
+            window.open(url, '_blank');
+            log('🔗 Opening Meta Developer Console...');
+        }
+
+        // Initialize
+        log('🚀 Instagram Webhook Setup Tool initialized');
+        log('📋 Ready to configure real Instagram webhooks');
+        
+        // Auto-check status on load
+        setTimeout(checkInstagramStatus, 1000);
+    </script>
+</body>
+</html>

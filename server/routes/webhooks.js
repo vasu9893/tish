@@ -45,17 +45,44 @@ router.post('/instagram', async (req, res) => {
     console.log('📥 Instagram webhook event received:', {
       contentType: req.headers['content-type'],
       userAgent: req.headers['user-agent'],
+      signature: req.headers['x-hub-signature-256'] ? 'present' : 'missing',
+      bodyType: typeof req.body,
+      bodyLength: req.body ? req.body.length : 0,
       timestamp: new Date().toISOString()
     });
 
-    // Process the webhook
+    // Parse the raw body to JSON for processing
+    let parsedBody;
+    try {
+      if (Buffer.isBuffer(req.body)) {
+        parsedBody = JSON.parse(req.body.toString('utf8'));
+        console.log('📋 Parsed webhook payload keys:', Object.keys(parsedBody));
+      } else {
+        parsedBody = req.body;
+        console.log('📋 Webhook body already parsed, keys:', parsedBody ? Object.keys(parsedBody) : []);
+      }
+    } catch (parseError) {
+      console.error('❌ Failed to parse webhook body:', parseError);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid JSON payload'
+      });
+    }
+
+    // Process the webhook with raw body for signature verification
     const result = await webhookProcessor.processWebhook(
-      req.body,
+      parsedBody,
       req.headers,
-      req.query
+      req.query,
+      req.body // Pass raw body for signature verification
     );
 
     if (result.success) {
+      console.log('✅ Webhook processed successfully:', {
+        eventsProcessed: result.eventsProcessed,
+        processingTime: result.processingTime
+      });
+      
       res.status(200).json({
         success: true,
         message: 'Webhook processed successfully',
@@ -63,6 +90,8 @@ router.post('/instagram', async (req, res) => {
         processingTime: result.processingTime
       });
     } else {
+      console.error('❌ Webhook processing failed:', result.error);
+      
       res.status(400).json({
         success: false,
         error: result.error,
@@ -72,9 +101,50 @@ router.post('/instagram', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Webhook processing error:', error);
+    console.error('❌ Error stack:', error.stack);
+    
     res.status(500).json({
       success: false,
       error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// Get recent webhook events
+router.get('/events', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 50;
+    const eventType = req.query.eventType;
+
+    // Build query
+    const query = { userId };
+    if (eventType && eventType !== 'all') {
+      query.eventType = eventType;
+    }
+
+    // Get recent events
+    const events = await WebhookEvent.find(query)
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({
+      success: true,
+      events: events,
+      total: events.length,
+      filters: {
+        eventType: eventType || 'all',
+        limit: limit
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching webhook events:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch webhook events',
       details: error.message
     });
   }
@@ -374,7 +444,6 @@ router.post('/subscriptions', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const { 
-      instagramAccountId, 
       subscribedFields, 
       webhookConfig,
       processingConfig,
@@ -382,16 +451,15 @@ router.post('/subscriptions', authMiddleware, async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!instagramAccountId || !subscribedFields || !webhookConfig) {
+    if (!subscribedFields || !webhookConfig) {
       return res.status(400).json({
         success: false,
-        error: 'instagramAccountId, subscribedFields, and webhookConfig are required'
+        error: 'subscribedFields and webhookConfig are required'
       });
     }
 
-    // Check if Instagram account exists and is connected
+    // Find connected Instagram account for this user
     const instagramUser = await InstagramUser.findOne({ 
-      instagramAccountId,
       userId,
       isConnected: true
     });
@@ -399,9 +467,11 @@ router.post('/subscriptions', authMiddleware, async (req, res) => {
     if (!instagramUser) {
       return res.status(400).json({
         success: false,
-        error: 'Instagram account not found or not connected'
+        error: 'No connected Instagram account found. Please connect your Instagram account first.'
       });
     }
+
+    const instagramAccountId = instagramUser.instagramUserId;
 
     // Check if subscription already exists
     const existingSubscription = await WebhookSubscription.findOne({
@@ -410,13 +480,25 @@ router.post('/subscriptions', authMiddleware, async (req, res) => {
     });
 
     if (existingSubscription) {
-      return res.status(400).json({
-        success: false,
-        error: 'Webhook subscription already exists for this account'
+      // Update existing subscription
+      existingSubscription.subscribedFields = subscribedFields;
+      existingSubscription.webhookConfig = webhookConfig;
+      existingSubscription.processingConfig = processingConfig || existingSubscription.processingConfig;
+      existingSubscription.notifications = notifications || existingSubscription.notifications;
+      existingSubscription.updatedAt = new Date();
+      
+      await existingSubscription.save();
+      
+      console.log('✅ Updated existing webhook subscription:', existingSubscription.subscriptionId);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Webhook subscription updated successfully',
+        subscription: existingSubscription
       });
     }
 
-    // Create subscription
+    // Create new subscription
     const subscription = new WebhookSubscription({
       subscriptionId: `sub_${instagramAccountId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       instagramAccountId,
@@ -429,13 +511,7 @@ router.post('/subscriptions', authMiddleware, async (req, res) => {
 
     await subscription.save();
 
-    // Subscribe to Meta webhook (if needed)
-    try {
-      await this.subscribeToMetaWebhook(subscription, instagramUser);
-    } catch (metaError) {
-      console.warn('⚠️ Failed to subscribe to Meta webhook:', metaError);
-      // Continue with local subscription
-    }
+    console.log('✅ Created new webhook subscription:', subscription.subscriptionId);
 
     res.status(201).json({
       success: true,
