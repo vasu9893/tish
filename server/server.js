@@ -55,11 +55,11 @@ io.engine.opts.cors.credentials = true
 io.engine.opts.cors.methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 io.engine.opts.cors.allowedHeaders = ["Content-Type", "Authorization", "X-Requested-With", "Origin", "Accept"]
 
-// JSON parsing for all routes
-app.use(express.json())
-
 // Raw body parsing for webhook signature verification (POST requests only)
 app.use('/api/webhooks/instagram', express.raw({ type: 'application/json' }))
+
+// JSON parsing for all other routes
+app.use(express.json())
 
 // Add CORS headers to all responses
 app.use((req, res, next) => {

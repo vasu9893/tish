@@ -66,6 +66,7 @@ class WebhookProcessor {
       this.socketIO.emit('webhook_event', eventMessage);
 
     } catch (error) {
+
       console.error('❌ Failed to broadcast webhook event:', {
         error: error.message,
         stack: error.stack,
@@ -98,7 +99,7 @@ class WebhookProcessor {
       // Create expected signature
       const expectedSignature = 'sha256=' + crypto
         .createHmac('sha256', appSecret)
-        .update(payload, 'utf8')
+        .update(payload) // Buffer or string, no encoding needed for Buffer
         .digest('hex');
       
       console.log('🔐 Signature verification:', {
@@ -185,7 +186,8 @@ class WebhookProcessor {
       let rawPayload;
       
       if (rawBody) {
-        rawPayload = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : rawBody;
+        // Keep raw body as Buffer for signature verification
+        rawPayload = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody, 'utf8');
       } else {
         rawPayload = typeof payload === 'string' ? payload : JSON.stringify(payload);
       }
