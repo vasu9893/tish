@@ -33,11 +33,14 @@ const NotificationDashboard = () => {
     markAllAsRead,
     setFilters,
     getFilteredNotifications,
-    getUnreadNotifications
+    getUnreadNotifications,
+    loadNotifications: loadNotificationsFromStore
   } = useNotificationStore();
 
   useEffect(() => {
-    loadNotifications()
+    loadNotificationsFromStore().then(() => {
+      updateStats()
+    })
     setupSocketConnection()
     
     return () => {
@@ -47,16 +50,6 @@ const NotificationDashboard = () => {
     }
   }, [])
 
-  const loadNotifications = async () => {
-    try {
-      // Load notifications from the store or API
-      console.log('📚 Loading notifications...')
-      // The notifications are already loaded from the store
-      updateStats()
-    } catch (error) {
-      console.error('❌ Failed to load notifications:', error)
-    }
-  }
 
   const setupSocketConnection = () => {
     try {
@@ -316,7 +309,11 @@ const NotificationDashboard = () => {
           </div>
           
           <Button 
-            onClick={loadNotifications} 
+            onClick={() => {
+              loadNotificationsFromStore().then(() => {
+                updateStats()
+              })
+            }} 
             disabled={isLoading}
             variant="outline"
             size="sm"

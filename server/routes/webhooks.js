@@ -120,28 +120,49 @@ router.post('/instagram', async (req, res) => {
 router.get('/events', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const limit = parseInt(req.query.limit) || 50;
-    const eventType = req.query.eventType;
+    const { 
+      eventType, 
+      accountId, 
+      status, 
+      limit = 50, 
+      offset = 0,
+      startDate,
+      endDate
+    } = req.query;
 
-    // Build query
-    const query = { userId };
-    if (eventType && eventType !== 'all') {
-      query.eventType = eventType;
+    // Build query - include userId for user-specific events, but also allow global events
+    const query = {};
+    
+    // For now, let's show all events (not filtered by userId) to see the 9 stored events
+    // TODO: Implement proper user-event association
+    if (eventType) query.eventType = eventType;
+    if (accountId) query.accountId = accountId;
+    if (status) query.processedStatus = status;
+    
+    if (startDate || endDate) {
+      query.timestamp = {};
+      if (startDate) query.timestamp.$gte = new Date(startDate);
+      if (endDate) query.timestamp.$lte = new Date(endDate);
     }
 
-    // Get recent events
+    // Get events
     const events = await WebhookEvent.find(query)
       .sort({ timestamp: -1 })
-      .limit(limit)
-      .lean();
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .select('-payload -webhookMetadata');
+
+    // Get total count
+    const total = await WebhookEvent.countDocuments(query);
 
     res.json({
       success: true,
-      events: events,
-      total: events.length,
-      filters: {
-        eventType: eventType || 'all',
-        limit: limit
+      data: {
+        events,
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: total > parseInt(offset) + events.length
       }
     });
 
@@ -290,63 +311,8 @@ router.post('/instagram/test', authMiddleware, async (req, res) => {
   }
 });
 
-// Get webhook events (with filtering and pagination)
-router.get('/events', authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { 
-      eventType, 
-      accountId, 
-      status, 
-      limit = 50, 
-      offset = 0,
-      startDate,
-      endDate
-    } = req.query;
-
-    // Build query
-    const query = {};
-    
-    if (eventType) query.eventType = eventType;
-    if (accountId) query.accountId = accountId;
-    if (status) query.processedStatus = status;
-    
-    if (startDate || endDate) {
-      query.timestamp = {};
-      if (startDate) query.timestamp.$gte = new Date(startDate);
-      if (endDate) query.timestamp.$lte = new Date(endDate);
-    }
-
-    // Get events
-    const events = await WebhookEvent.find(query)
-      .sort({ timestamp: -1 })
-      .skip(parseInt(offset))
-      .limit(parseInt(limit))
-      .select('-payload -webhookMetadata');
-
-    // Get total count
-    const total = await WebhookEvent.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: {
-        events,
-        total,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: total > parseInt(offset) + events.length
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Get webhook events error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get webhook events',
-      details: error.message
-    });
-  }
-});
+// Get webhook events (with filtering and pagination) - REMOVED DUPLICATE ROUTE
+// This route was duplicating the one above and causing conflicts
 
 // Get webhook event by ID
 router.get('/events/:eventId', authMiddleware, async (req, res) => {

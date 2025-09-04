@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import api from '../utils/api';
 
 const useNotificationStore = create(
   subscribeWithSelector((set, get) => ({
@@ -87,6 +88,32 @@ const useNotificationStore = create(
 
     setConnectionStatus: (isConnected) => {
       set({ isConnected });
+    },
+
+    // Load notifications from API
+    loadNotifications: async () => {
+      try {
+        set({ isLoading: true });
+        const response = await api.get('/webhooks/events');
+        
+        if (response.data?.success && response.data.data?.events) {
+          const events = response.data.data.events.map(event => ({
+            ...event,
+            id: event.eventId || `notif_${Date.now()}_${Math.random()}`,
+            status: event.processedStatus || 'completed',
+            isRead: event.isRead || false
+          }));
+          
+          set({ 
+            notifications: events,
+            unreadCount: events.filter(n => !n.isRead).length
+          });
+        }
+      } catch (error) {
+        console.error('❌ Failed to load notifications:', error);
+      } finally {
+        set({ isLoading: false });
+      }
     },
 
     // Computed values
