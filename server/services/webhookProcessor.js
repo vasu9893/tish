@@ -31,6 +31,12 @@ class WebhookProcessor {
     }
 
     try {
+      console.log('📤 Preparing to broadcast webhook event:', {
+        eventType: eventData.eventType,
+        hasContent: !!eventData.content,
+        contentType: typeof eventData.content,
+        contentKeys: eventData.content ? Object.keys(eventData.content) : []
+      });
       const eventMessage = {
         id: eventData.id || `webhook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         eventType: eventData.eventType || eventData.type || 'unknown',
@@ -39,7 +45,9 @@ class WebhookProcessor {
           username: eventData.sender?.username || eventData.from?.username || eventData.senderId || 'Unknown User'
         },
         content: {
-          text: eventData.message?.text || eventData.comment?.text || eventData.content || 'No content available'
+          text: eventData.message?.text || eventData.comment?.text || 
+                (typeof eventData.content === 'string' ? eventData.content : 
+                 (eventData.content?.text || 'No content available'))
         },
         timestamp: eventData.timestamp || eventData.created_time || new Date().toISOString(),
         accountId: eventData.accountId || eventData.instagramAccountId || 'unknown',
@@ -49,14 +57,24 @@ class WebhookProcessor {
       console.log('📤 Broadcasting webhook event via Socket.IO:', {
         eventType: eventMessage.eventType,
         sender: eventMessage.sender.username,
-        content: eventMessage.content.text.substring(0, 50) + '...'
+        content: typeof eventMessage.content.text === 'string' 
+          ? eventMessage.content.text.substring(0, 50) + '...'
+          : 'No text content available'
       });
 
       // Broadcast to all connected clients
       this.socketIO.emit('webhook_event', eventMessage);
 
     } catch (error) {
-      console.error('❌ Failed to broadcast webhook event:', error);
+      console.error('❌ Failed to broadcast webhook event:', {
+        error: error.message,
+        stack: error.stack,
+        eventData: {
+          eventType: eventData?.eventType,
+          hasContent: !!eventData?.content,
+          contentType: typeof eventData?.content
+        }
+      });
     }
   }
 
