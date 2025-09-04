@@ -15,6 +15,7 @@ const NotificationDashboard = () => {
   const [showAll, setShowAll] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [socket, setSocket] = useState(null);
   const [stats, setStats] = useState({
     totalEvents: 0,
     eventsToday: 0,
@@ -46,6 +47,17 @@ const NotificationDashboard = () => {
     }
   }, [])
 
+  const loadNotifications = async () => {
+    try {
+      // Load notifications from the store or API
+      console.log('📚 Loading notifications...')
+      // The notifications are already loaded from the store
+      updateStats()
+    } catch (error) {
+      console.error('❌ Failed to load notifications:', error)
+    }
+  }
+
   const setupSocketConnection = () => {
     try {
       // Connect to Socket.IO server
@@ -55,7 +67,7 @@ const NotificationDashboard = () => {
 
       newSocket.on('connect', () => {
         console.log('🔌 Connected to Socket.IO server')
-        setIsConnected(true)
+        setConnectionStatus('connected')
         
         // Authenticate with JWT token
         const token = localStorage.getItem('token')
@@ -76,13 +88,10 @@ const NotificationDashboard = () => {
       newSocket.on('new_webhook_event', (data) => {
         console.log('🔔 New webhook event received:', data)
         if (data.type === 'instagram_webhook') {
-          // Add new notification to the list
-          setNotifications(prev => [data.event, ...prev])
-          // Update stats
-          updateStats([data.event, ...notifications])
-          
           // Show toast notification
           showToast(`New ${data.event.eventType} event received!`)
+          // Update stats
+          updateStats()
         }
       })
 
@@ -90,20 +99,14 @@ const NotificationDashboard = () => {
       newSocket.on('webhook_event_broadcast', (data) => {
         console.log('📡 Webhook event broadcast:', data)
         if (data.type === 'instagram_webhook') {
-          // Update notifications if not already added
-          setNotifications(prev => {
-            const exists = prev.find(n => n.id === data.event.id)
-            if (!exists) {
-              return [data.event, ...prev]
-            }
-            return prev
-          })
+          // Update stats
+          updateStats()
         }
       })
 
       newSocket.on('disconnect', () => {
         console.log('🔌 Disconnected from Socket.IO server')
-        setIsConnected(false)
+        setConnectionStatus('disconnected')
       })
 
       newSocket.on('error', (error) => {
@@ -207,9 +210,11 @@ const NotificationDashboard = () => {
   };
 
   const handleReconnect = () => {
-    socketIOService.disconnect();
+    if (socket) {
+      socket.disconnect();
+    }
     setTimeout(() => {
-      socketIOService.connect();
+      setupSocketConnection();
       toast.info('Reconnecting to notification service...');
     }, 1000);
   };
