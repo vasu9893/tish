@@ -120,7 +120,7 @@ class WebhookProcessor {
   /**
    * Process incoming webhook payload
    */
-  async processWebhook(payload, headers, query, rawBody = null) {
+  async processWebhook(payload, headers, query, rawBody = null, userId = null) {
     const startTime = Date.now();
     
     try {
@@ -132,6 +132,21 @@ class WebhookProcessor {
         rawBodyLength: rawBody ? (Buffer.isBuffer(rawBody) ? rawBody.length : rawBody.length) : 0,
         timestamp: new Date().toISOString()
       });
+
+      // If no userId provided, try to find it from the Instagram account ID
+      if (!userId && payload.entry && payload.entry.length > 0) {
+        const accountId = payload.entry[0].id;
+        if (accountId) {
+          const InstagramUser = require('../models/InstagramUser');
+          const instagramUser = await InstagramUser.findOne({ instagramAccountId: accountId });
+          if (instagramUser) {
+            userId = instagramUser.userId;
+            console.log('🔍 Found user for Instagram account:', { accountId, userId });
+          } else {
+            console.log('⚠️ No user found for Instagram account:', accountId);
+          }
+        }
+      }
 
       // Extract webhook metadata
       const webhookMetadata = {
@@ -165,7 +180,7 @@ class WebhookProcessor {
       const processingResults = [];
       for (const event of events) {
         try {
-          const result = await this.processEvent(event, webhookMetadata);
+          const result = await this.processEvent(event, webhookMetadata, userId);
           processingResults.push(result);
         } catch (error) {
           console.error('❌ Failed to process event:', error);
@@ -568,7 +583,7 @@ class WebhookProcessor {
   /**
    * Process individual event
    */
-  async processEvent(event, webhookMetadata) {
+  async processEvent(event, webhookMetadata, userId = null) {
     const startTime = Date.now();
     
     try {
@@ -589,6 +604,8 @@ class WebhookProcessor {
       const webhookEvent = new WebhookEvent({
         eventId: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         eventType: event.eventType,
+        pageId: event.accountId, // Use accountId as pageId for Instagram
+        userId: userId || 'unknown', // Use the passed userId
         accountId: event.accountId,
         senderId: event.senderId,
         recipientId: event.recipientId,

@@ -78,7 +78,8 @@ router.post('/instagram', async (req, res) => {
       parsedBody,
       req.headers,
       req.query,
-      req.body // Pass raw body for signature verification
+      req.body, // Pass raw body for signature verification
+      null // userId will be looked up by the processor
     );
 
     if (result.success) {
