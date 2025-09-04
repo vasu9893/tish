@@ -22,18 +22,6 @@ const authMiddleware = (req, res, next) => {
       })
     }
 
-    // Check for dummy token (development/testing)
-    if (token === 'dummy_jwt_token_1756470432022') {
-      console.log('⚠️ Using dummy token for development/testing')
-      req.user = {
-        id: 'dummy_user_id',
-        username: 'dummy_user',
-        email: 'dummy@example.com'
-      }
-      console.log('✅ Dummy token accepted for user:', req.user.id)
-      next()
-      return
-    }
 
     // Verify JWT token
     try {

@@ -421,34 +421,44 @@ class WebhookProcessor {
       itemKeys: value?.item ? Object.keys(value.item) : []
     });
 
-    // Handle Instagram webhook comment structure: value.item
-    if (!value || !value.item) {
-      console.log('❌ No value.item found in comment data');
+    // Handle Instagram webhook comment structure
+    // Structure 1: value.item (nested)
+    // Structure 2: value directly contains comment data
+    let commentData = null;
+    
+    if (value?.item) {
+      // Structure 1: value.item
+      commentData = value.item;
+      console.log('📋 Using nested value.item structure');
+    } else if (value?.id && value?.text) {
+      // Structure 2: value directly contains comment data
+      commentData = value;
+      console.log('📋 Using direct value structure');
+    } else {
+      console.log('❌ No valid comment structure found in value');
       return null;
     }
-
-    const item = value.item;
     
     const eventData = {
-      id: `comment_${item.id || Date.now()}`,
-      senderId: item.from?.id || item.user?.id || 'unknown',
+      id: `comment_${commentData.id || Date.now()}`,
+      senderId: commentData.from?.id || commentData.user?.id || 'unknown',
       recipientId: accountId,
       timestamp: new Date().toISOString(),
       content: {
-        text: item.text || item.message || '',
-        mediaUrl: item.media?.url || null,
-        mediaType: item.media?.type || null,
-        replyTo: item.reply_to?.comment_id || null,
-        parentId: item.media?.id || item.parent_id || null
+        text: commentData.text || commentData.message || '',
+        mediaUrl: commentData.media?.url || null,
+        mediaType: commentData.media?.type || commentData.media?.media_product_type || null,
+        replyTo: commentData.reply_to?.comment_id || null,
+        parentId: commentData.media?.id || commentData.parent_id || null
       },
       userInfo: {
-        username: item.from?.username || item.user?.username || 'unknown',
-        fullName: item.from?.name || item.user?.name || 'Unknown User',
-        profilePicture: item.from?.profile_picture_url || item.user?.profile_picture_url || null,
-        verified: item.from?.verified || item.user?.verified || false
+        username: commentData.from?.username || commentData.user?.username || 'unknown',
+        fullName: commentData.from?.name || commentData.user?.name || 'Unknown User',
+        profilePicture: commentData.from?.profile_picture_url || commentData.user?.profile_picture_url || null,
+        verified: commentData.from?.verified || commentData.user?.verified || false
       },
       metadata: {
-        originalItem: item,
+        originalCommentData: commentData,
         originalValue: value
       }
     };

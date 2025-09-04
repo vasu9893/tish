@@ -249,72 +249,6 @@ router.post('/debug/import-dm', authMiddleware, async (req, res) => {
   }
 })
 
-// Debug endpoint to create test Instagram conversations
-router.post('/debug/create-test-conversations', async (req, res) => {
-  try {
-    const userId = '1' // Using the fixed user ID
-    
-    // Create some test Instagram messages
-    const testMessages = [
-      {
-        sender: 'Instagram User (john_doe)',
-        content: 'Hey! I saw your latest post, it was amazing! 🔥',
-        userId: userId,
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        room: 'instagram',
-        source: 'instagram',
-        isFromInstagram: true,
-        instagramSenderId: 'john_doe_123',
-        instagramMessageId: 'msg_' + Date.now() + '_1',
-        instagramThreadId: 'john_doe_123'
-      },
-      {
-        sender: 'Instagram User (sarah_smith)',
-        content: 'Hi! I have a question about your products. Are they available for international shipping?',
-        userId: userId,
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-        room: 'instagram',
-        source: 'instagram',
-        isFromInstagram: true,
-        instagramSenderId: 'sarah_smith_456',
-        instagramMessageId: 'msg_' + Date.now() + '_2',
-        instagramThreadId: 'sarah_smith_456'
-      },
-      {
-        sender: 'Instagram User (mike_wilson)',
-        content: 'Love your content! Keep it up! 👍',
-        userId: userId,
-        timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-        room: 'instagram',
-        source: 'instagram',
-        isFromInstagram: true,
-        instagramSenderId: 'mike_wilson_789',
-        instagramMessageId: 'msg_' + Date.now() + '_3',
-        instagramThreadId: 'mike_wilson_789'
-      }
-    ]
-    
-    // Save test messages to database
-    const savedMessages = await Message.insertMany(testMessages)
-    
-    res.json({
-      success: true,
-      message: 'Test Instagram conversations created successfully',
-      count: savedMessages.length,
-      conversations: savedMessages.map(msg => ({
-        senderId: msg.instagramSenderId,
-        content: msg.content,
-        timestamp: msg.timestamp
-      }))
-    })
-  } catch (error) {
-    console.error('Error creating test conversations:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create test conversations'
-    })
-  }
-})
 
 // Quick fix endpoint for current user's Instagram permissions
 router.post('/debug/fix-current-user-permissions', authMiddleware, async (req, res) => {
@@ -649,13 +583,13 @@ router.get('/auth/instagram/callback', async (req, res) => {
     // Save Instagram connection to database
     console.log('=== STEP 5: Save Instagram Connection to Database ===')
     try {
-      // For now, use a dummy user ID - in production, extract from JWT token
-      const dummyUserId = 'user_' + Date.now() // This should be extracted from authenticated user
+      // Extract user ID from authenticated JWT token
+      const userId = req.user.id
     
     const instagramUser = await InstagramUser.findOneAndUpdate(
         { instagramAccountId: instagramUserId },
         {
-          userId: dummyUserId,
+          userId: userId,
           username: instagramConnectionData.username,
           instagramAccountId: instagramUserId,
           instagramUsername: instagramConnectionData.username,
@@ -1139,72 +1073,6 @@ router.get('/conversations', authMiddleware, async (req, res) => {
   }
 })
 
-// Simple conversations endpoint for testing (no Instagram connection required)
-router.get('/conversations/test', authMiddleware, async (req, res) => {
-  try {
-    console.log('🧪 Test Conversations Route Called:', {
-      timestamp: new Date().toISOString(),
-      user: req.user,
-      userId: req.user?.id
-    })
-    
-    // Return test conversations for development
-    const testConversations = [
-      {
-        id: 'test_conv_1',
-        recipientId: 'test_user_1',
-        fullName: 'Test User 1',
-        avatar: null,
-        timestamp: new Date().toLocaleString(),
-        lastMessage: 'This is a test conversation for development',
-        messageCount: 1,
-        unreadCount: 0,
-        _instagramData: {
-          conversationId: 'test_conv_1',
-          updatedTime: Date.now() / 1000,
-          rawData: { id: 'test_conv_1' }
-        }
-      },
-      {
-        id: 'test_conv_2',
-        recipientId: 'test_user_2',
-        fullName: 'Test User 2',
-        avatar: null,
-        timestamp: new Date().toLocaleString(),
-        lastMessage: 'Another test conversation',
-        messageCount: 1,
-        unreadCount: 0,
-        _instagramData: {
-          conversationId: 'test_conv_2',
-          updatedTime: Date.now() / 1000,
-          rawData: { id: 'test_conv_2' }
-        }
-      }
-    ]
-    
-    res.json({
-      success: true,
-      data: {
-        conversations: testConversations,
-        total: testConversations.length,
-        note: 'Test conversations for development - no Instagram connection required',
-        source: 'test_data',
-        debug: {
-          userId: req.user.id,
-          timestamp: new Date().toISOString()
-        }
-      }
-    })
-    
-  } catch (error) {
-    console.error('❌ Test conversations error:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get test conversations',
-      details: error.message
-    })
-  }
-})
 
 // Get conversation messages (from Instagram Graph API)
 router.get('/conversations/:conversationId/messages', authMiddleware, async (req, res) => {
@@ -1581,48 +1449,6 @@ router.get('/webhook/events', authMiddleware, async (req, res) => {
   }
 });
 
-// Webhook test endpoint
-router.post('/webhook/test', authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { eventType, content, timestamp } = req.body;
-
-    // Create a test webhook event
-    const testEvent = new WebhookEvent({
-      eventType: eventType || 'test_webhook',
-      timestamp: timestamp ? new Date(timestamp) : new Date(),
-      content: {
-        text: content || 'Test webhook event'
-      },
-      userInfo: {
-        username: 'test_user',
-        userId: 'test_user_123'
-      },
-      pageId: 'test_page',
-      userId: userId,
-      isProcessed: true,
-      processingError: null,
-      flowResponse: 'Test event processed successfully'
-    });
-
-    await testEvent.save();
-
-    res.json({
-      success: true,
-      message: 'Test webhook event created successfully',
-      eventId: testEvent._id,
-      eventType: testEvent.eventType,
-      timestamp: testEvent.timestamp
-    });
-
-  } catch (error) {
-    console.error('❌ Webhook test error:', error);
-    res.status(500).json({
-        success: false, 
-      error: 'Failed to create test webhook event'
-    });
-  }
-});
 
 // Instagram Basic Display API webhook for supported events (POST request)
 router.post('/webhook', async (req, res) => {

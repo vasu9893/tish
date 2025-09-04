@@ -311,7 +311,12 @@
             updateStatus('instagramStatus', 'pending', 'Checking...');
 
             try {
-                const token = localStorage.getItem('token') || 'dummy_jwt_token_1756470432022';
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    updateStatus('instagramStatus', 'disconnected', '❌ No authentication token found');
+                    log('❌ No authentication token found. Please login first.');
+                    return;
+                }
                 const response = await fetch(`${BACKEND_URL}/api/instagram/status`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -341,7 +346,12 @@
             updateStatus('subscriptionStatus', 'pending', 'Subscribing...');
 
             try {
-                const token = localStorage.getItem('token') || 'dummy_jwt_token_1756470432022';
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    updateStatus('instagramStatus', 'disconnected', '❌ No authentication token found');
+                    log('❌ No authentication token found. Please login first.');
+                    return;
+                }
                 const selectedFields = [];
                 
                 if (document.getElementById('comments').checked) selectedFields.push('comments');
@@ -463,7 +473,12 @@
             
             monitoringInterval = setInterval(async () => {
                 try {
-                    const token = localStorage.getItem('token') || 'dummy_jwt_token_1756470432022';
+                    const token = localStorage.getItem('token');
+                if (!token) {
+                    updateStatus('instagramStatus', 'disconnected', '❌ No authentication token found');
+                    log('❌ No authentication token found. Please login first.');
+                    return;
+                }
                     const response = await fetch(`${BACKEND_URL}/api/webhooks/events?limit=5`, {
                         headers: {
                             'Authorization': `Bearer ${token}`
